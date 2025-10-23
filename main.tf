@@ -31,20 +31,20 @@ resource "aws_subnet" "web1_subnet" {
   cidr_block              = "172.31.1.0/24"
   availability_zone       = "eu-central-1a"
   map_public_ip_on_launch = true
-  tags = { Name = "web1-subnet" }
+  tags = { Name = "web-subnet-1" }
 }
 
 resource "aws_subnet" "web2_subnet" {
   vpc_id                  = data.aws_vpc.default.id
-  cidr_block              = "172.31.2.0/24"
+  cidr_block              = "172.31.11.0/24"
   availability_zone       = "eu-central-1b"
   map_public_ip_on_launch = true
-  tags = { Name = "web2-subnet" }
+  tags = { Name = "web-subnet-2" }
 }
 
 resource "aws_subnet" "db_subnet1" {
   vpc_id                  = data.aws_vpc.default.id
-  cidr_block              = "172.31.10.0/24"
+  cidr_block              = "172.31.2.0/24"
   availability_zone       = "eu-central-1b"
   map_public_ip_on_launch = false
   tags = { Name = "db-subnet-1" }
@@ -52,10 +52,26 @@ resource "aws_subnet" "db_subnet1" {
 
 resource "aws_subnet" "db_subnet2" {
   vpc_id                  = data.aws_vpc.default.id
-  cidr_block              = "172.31.11.0/24"
+  cidr_block              = "172.31.21.0/24"
   availability_zone       = "eu-central-1c"
   map_public_ip_on_launch = false
   tags = { Name = "db-subnet-2" }
+}
+
+resource "aws_subnet" "soar_subnet" {
+  vpc_id                  = data.aws_vpc.default.id
+  cidr_block              = "172.31.3.0/24"
+  availability_zone       = "eu-central-1a"
+  map_public_ip_on_launch = false
+  tags = { Name = "soar-subnet" }
+}
+
+resource "aws_subnet" "grafana_subnet" {
+  vpc_id                  = data.aws_vpc.default.id
+  cidr_block              = "172.31.4.0/24"
+  availability_zone       = "eu-central-1a"
+  map_public_ip_on_launch = true
+  tags = { Name = "grafana-subnet" }
 }
 
 # ----------------------
@@ -82,17 +98,31 @@ resource "aws_security_group" "web_sg" {
   vpc_id = data.aws_vpc.default.id
 
   ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    from_port       = 9100
+    to_port         = 9100
+    protocol        = "tcp"
+    security_groups = [aws_security_group.grafana_sg.id]
   }
 
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["82.170.150.87/32","145.93.76.108/32"]
+  }
+
+  ingress {
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.lb_sg.id]
+  }
+
+  ingress {
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.lb_sg.id]
   }
 
   egress {
@@ -114,6 +144,46 @@ resource "aws_security_group" "db_sg" {
     security_groups = [aws_security_group.web_sg.id]
   }
 
+  ingress {
+    from_port       = 9100
+    to_port         = 9100
+    protocol        = "tcp"
+    security_groups = [aws_security_group.grafana_sg.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "soar_sg" {
+  name   = "soar-sg-${random_id.suffix.hex}"
+  vpc_id = data.aws_vpc.default.id
+
+  ingress {
+    from_port       = 9100
+    to_port         = 9100
+    protocol        = "tcp"
+    security_groups = [aws_security_group.web_sg.id]
+  }
+
+  ingress {
+    from_port       = 3306
+    to_port         = 3306
+    protocol        = "tcp"
+    security_groups = [aws_security_group.db_sg.id]
+  }
+
+  ingress {
+    from_port       = 9090
+    to_port         = 9090
+    protocol        = "tcp"
+    security_groups = [aws_security_group.grafana_sg.id]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -123,35 +193,68 @@ resource "aws_security_group" "db_sg" {
 }
 
 resource "aws_security_group" "grafana_sg" {
-  name   = "grafana-sg"
+  name   = "grafana-sg-${random_id.suffix.hex}"
   vpc_id = data.aws_vpc.default.id
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 3000
-    to_port     = 3000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 9090
-    to_port     = 9090
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 
   ingress {
     from_port       = 9100
     to_port         = 9100
     protocol        = "tcp"
     security_groups = [aws_security_group.web_sg.id]
+  }
+
+  ingress {
+    from_port       = 9090
+    to_port         = 9090
+    protocol        = "tcp"
+    security_groups = [aws_security_group.soar_sg.id]
+  }
+
+  ingress {
+    from_port       = 3306
+    to_port         = 3306
+    protocol        = "tcp"
+    security_groups = [aws_security_group.db_sg.id]
+  }
+
+  ingress {
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["82.170.150.87/32","145.93.76.108/32"]
+  }
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["82.170.150.87/32","145.93.76.108/32"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "lb_sg" {
+  name   = "lb-sg-${random_id.suffix.hex}"
+  vpc_id = data.aws_vpc.default.id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -187,7 +290,7 @@ resource "aws_db_instance" "db" {
 }
 
 # ----------------------
-# User Data (Nginx + DB vars + Prometheus Node Exporter)
+# User Data (Webservers)
 # ----------------------
 locals {
   user_data = <<-EOT
@@ -249,6 +352,7 @@ resource "aws_instance" "web1" {
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = "t2.micro"
   subnet_id              = aws_subnet.web1_subnet.id
+  private_ip             = "172.31.1.1"
   vpc_security_group_ids = [aws_security_group.web_sg.id]
   key_name               = "Project1"
   user_data              = local.user_data
@@ -259,6 +363,7 @@ resource "aws_instance" "web2" {
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = "t2.micro"
   subnet_id              = aws_subnet.web2_subnet.id
+  private_ip             = "172.31.11.1"
   vpc_security_group_ids = [aws_security_group.web_sg.id]
   key_name               = "Project1"
   user_data              = local.user_data
@@ -266,80 +371,15 @@ resource "aws_instance" "web2" {
 }
 
 # ----------------------
-# Grafana + Prometheus instance
+# Grafana instance
 # ----------------------
-locals {
-  grafana_user_data = <<-EOT
-    #!/bin/bash
-    yum update -y
-    yum install -y wget tar
-
-    # Install Grafana
-    cat <<EOF > /etc/yum.repos.d/grafana.repo
-    [grafana]
-    name=grafana
-    baseurl=https://packages.grafana.com/oss/rpm
-    repo_gpgcheck=1
-    enabled=1
-    gpgcheck=1
-    gpgkey=https://packages.grafana.com/gpg.key
-    EOF
-
-    yum install -y grafana
-    systemctl enable grafana-server
-    systemctl start grafana-server
-
-    # Install Prometheus
-    cd /tmp
-    wget https://github.com/prometheus/prometheus/releases/download/v2.47.0/prometheus-2.47.0.linux-amd64.tar.gz
-    tar xvf prometheus-2.47.0.linux-amd64.tar.gz
-    cd prometheus-2.47.0.linux-amd64
-
-    mkdir -p /etc/prometheus
-    cat <<EOF >/etc/prometheus/prometheus.yml
-    global:
-      scrape_interval: 15s
-
-    scrape_configs:
-      - job_name: 'node_exporter'
-        static_configs:
-          - targets: ['${aws_instance.web1.private_ip}:9100','${aws_instance.web2.private_ip}:9100']
-    EOF
-
-    cp prometheus /usr/local/bin/
-    cp promtool /usr/local/bin/
-
-    cat <<EOF >/etc/systemd/system/prometheus.service
-    [Unit]
-    Description=Prometheus
-    Wants=network-online.target
-    After=network-online.target
-
-    [Service]
-    ExecStart=/usr/local/bin/prometheus \\
-      --config.file=/etc/prometheus/prometheus.yml \\
-      --storage.tsdb.path=/var/lib/prometheus/ \\
-      --web.listen-address=:9090 \\
-      --web.enable-lifecycle
-    Restart=always
-
-    [Install]
-    WantedBy=multi-user.target
-    EOF
-
-    mkdir -p /var/lib/prometheus
-    systemctl daemon-reload
-    systemctl enable --now prometheus
-  EOT
-}
-
 resource "aws_instance" "grafana" {
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = "t2.micro"
-  subnet_id              = aws_subnet.web1_subnet.id
+  subnet_id              = aws_subnet.grafana_subnet.id
+  private_ip             = "172.31.4.1"
   vpc_security_group_ids = [aws_security_group.grafana_sg.id]
   key_name               = "Project1"
-  user_data              = local.grafana_user_data
   tags = { Name = "grafana" }
 }
 
@@ -351,7 +391,7 @@ resource "aws_lb" "web_lb" {
   internal           = false
   load_balancer_type = "application"
   subnets            = [aws_subnet.web1_subnet.id, aws_subnet.web2_subnet.id]
-  security_groups    = [aws_security_group.web_sg.id]
+  security_groups    = [aws_security_group.lb_sg.id]
 }
 
 resource "aws_lb_target_group" "web_tg" {
@@ -407,5 +447,5 @@ output "db_endpoint" {
 }
 
 output "grafana_public_ip" {
-  value = aws_instance.grafana.public_ip
+  value = aws_instance.grafana.private_ip
 }
