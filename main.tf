@@ -31,7 +31,7 @@ resource "aws_subnet" "web1_subnet" {
   cidr_block              = "172.31.1.0/24"
   availability_zone       = "eu-central-1a"
   map_public_ip_on_launch = true
-  tags = { Name = "web1-subnet" }
+  tags = { Name = "web-subnet-1" }
 }
 
 resource "aws_subnet" "web2_subnet" {
@@ -39,7 +39,7 @@ resource "aws_subnet" "web2_subnet" {
   cidr_block              = "172.31.11.0/24"
   availability_zone       = "eu-central-1b"
   map_public_ip_on_launch = true
-  tags = { Name = "web2-subnet" }
+  tags = { Name = "web-subnet-2" }
 }
 
 resource "aws_subnet" "db_subnet1" {
@@ -75,7 +75,7 @@ resource "aws_subnet" "grafana_subnet" {
 }
 
 # ----------------------
-# AMI en random suffix
+# AMI and random suffix
 # ----------------------
 data "aws_ami" "amazon_linux" {
   most_recent = true
@@ -98,9 +98,9 @@ resource "aws_security_group" "web_sg" {
   vpc_id = data.aws_vpc.default.id
 
   ingress {
-    from_port       = 9100
-    to_port         = 9100
-    protocol        = "tcp"
+    from_port   = 9100
+    to_port     = 9100
+    protocol    = "tcp"
     security_groups = [aws_security_group.grafana_sg.id]
   }
 
@@ -108,7 +108,7 @@ resource "aws_security_group" "web_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["82.170.150.87/32","145.93.76.108/32"]
+    cidr_blocks = ["82.170.150.87/32", "145.93.76.108/32"]
   }
 
   ingress {
@@ -221,14 +221,14 @@ resource "aws_security_group" "grafana_sg" {
     from_port   = 3000
     to_port     = 3000
     protocol    = "tcp"
-    cidr_blocks = ["82.170.150.87/32","145.93.76.108/32"]
+    cidr_blocks = ["82.170.150.87/32", "145.93.76.108/32"]
   }
 
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["82.170.150.87/32","145.93.76.108/32"]
+    cidr_blocks = ["82.170.150.87/32", "145.93.76.108/32"]
   }
 
   egress {
@@ -266,13 +266,16 @@ resource "aws_security_group" "lb_sg" {
 }
 
 # ----------------------
-# RDS Database
+# DB Subnet Group
 # ----------------------
 resource "aws_db_subnet_group" "db_subnet_group" {
   name       = "db-subnet-group"
   subnet_ids = [aws_subnet.db_subnet1.id, aws_subnet.db_subnet2.id]
 }
 
+# ----------------------
+# RDS Database
+# ----------------------
 resource "aws_db_instance" "db" {
   identifier              = "mydb-${random_id.suffix.hex}"
   allocated_storage       = 20
@@ -290,7 +293,7 @@ resource "aws_db_instance" "db" {
 }
 
 # ----------------------
-# User Data (Nginx + DB vars + Prometheus Node Exporter)
+# User Data voor Webservers
 # ----------------------
 locals {
   user_data = <<-EOT
@@ -352,7 +355,7 @@ resource "aws_instance" "web1" {
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = "t2.micro"
   subnet_id              = aws_subnet.web1_subnet.id
-  private_ip             = "172.31.1.5"
+  private_ip             = "172.31.1.10"
   vpc_security_group_ids = [aws_security_group.web_sg.id]
   key_name               = "Project1"
   user_data              = local.user_data
@@ -363,7 +366,7 @@ resource "aws_instance" "web2" {
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = "t2.micro"
   subnet_id              = aws_subnet.web2_subnet.id
-  private_ip             = "172.31.11.5"
+  private_ip             = "172.31.11.10"
   vpc_security_group_ids = [aws_security_group.web_sg.id]
   key_name               = "Project1"
   user_data              = local.user_data
@@ -371,7 +374,7 @@ resource "aws_instance" "web2" {
 }
 
 # ----------------------
-# Grafana + Prometheus instance
+# Grafana instance
 # ----------------------
 locals {
   grafana_user_data = <<-EOT
@@ -442,7 +445,7 @@ resource "aws_instance" "grafana" {
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = "t2.micro"
   subnet_id              = aws_subnet.grafana_subnet.id
-  private_ip             = "172.31.4.5"
+  private_ip             = "172.31.4.10"
   vpc_security_group_ids = [aws_security_group.grafana_sg.id]
   key_name               = "Project1"
   user_data              = local.grafana_user_data
@@ -453,7 +456,7 @@ resource "aws_instance" "grafana" {
 # Load Balancer
 # ----------------------
 resource "aws_lb" "web_lb" {
-  name               = "web-lb-${random_id.suffix.hex}"
+  name               = "web-lb"
   internal           = false
   load_balancer_type = "application"
   subnets            = [aws_subnet.web1_subnet.id, aws_subnet.web2_subnet.id]
@@ -512,10 +515,6 @@ output "db_endpoint" {
   value = aws_db_instance.db.address
 }
 
-output "grafana_public_ip" {
-  value = aws_instance.grafana.public_ip
+output "grafana_private_ip" {
+  value = aws_instance.grafana.private_ip
 }
-
-# ----------------------
-# Feest
-# ----------------------
