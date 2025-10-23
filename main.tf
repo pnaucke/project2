@@ -26,34 +26,50 @@ data "aws_vpc" "default" {
 # ----------------------
 # Subnets
 # ----------------------
+resource "aws_subnet" "public1" {
+  vpc_id                  = data.aws_vpc.default.id
+  cidr_block              = "172.31.0.0/24"
+  availability_zone       = "eu-central-1a"
+  map_public_ip_on_launch = true
+  tags = { Name = "public-subnet-1" }
+}
+
+resource "aws_subnet" "public2" {
+  vpc_id                  = data.aws_vpc.default.id
+  cidr_block              = "172.31.10.0/24"
+  availability_zone       = "eu-central-1b"
+  map_public_ip_on_launch = true
+  tags = { Name = "public-subnet-2" }
+}
+
 resource "aws_subnet" "web1_subnet" {
   vpc_id                  = data.aws_vpc.default.id
   cidr_block              = "172.31.1.0/24"
   availability_zone       = "eu-central-1a"
-  map_public_ip_on_launch = true
-  tags = { Name = "web1-subnet" }
+  map_public_ip_on_launch = false
+  tags = { Name = "web-subnet-1" }
 }
 
 resource "aws_subnet" "web2_subnet" {
   vpc_id                  = data.aws_vpc.default.id
   cidr_block              = "172.31.11.0/24"
   availability_zone       = "eu-central-1b"
-  map_public_ip_on_launch = true
-  tags = { Name = "web2-subnet" }
+  map_public_ip_on_launch = false
+  tags = { Name = "web-subnet-2" }
 }
 
-resource "aws_subnet" "db_subnet1" {
+resource "aws_subnet" "db1_subnet" {
   vpc_id                  = data.aws_vpc.default.id
   cidr_block              = "172.31.2.0/24"
-  availability_zone       = "eu-central-1b"
+  availability_zone       = "eu-central-1a"
   map_public_ip_on_launch = false
   tags = { Name = "db-subnet-1" }
 }
 
-resource "aws_subnet" "db_subnet2" {
+resource "aws_subnet" "db2_subnet" {
   vpc_id                  = data.aws_vpc.default.id
   cidr_block              = "172.31.12.0/24"
-  availability_zone       = "eu-central-1c"
+  availability_zone       = "eu-central-1b"
   map_public_ip_on_launch = false
   tags = { Name = "db-subnet-2" }
 }
@@ -61,7 +77,7 @@ resource "aws_subnet" "db_subnet2" {
 resource "aws_subnet" "soar_subnet" {
   vpc_id                  = data.aws_vpc.default.id
   cidr_block              = "172.31.20.0/24"
-  availability_zone       = "eu-central-1a"
+  availability_zone       = "eu-central-1c"
   map_public_ip_on_launch = false
   tags = { Name = "soar-subnet" }
 }
@@ -69,7 +85,7 @@ resource "aws_subnet" "soar_subnet" {
 resource "aws_subnet" "grafana_subnet" {
   vpc_id                  = data.aws_vpc.default.id
   cidr_block              = "172.31.21.0/24"
-  availability_zone       = "eu-central-1a"
+  availability_zone       = "eu-central-1c"
   map_public_ip_on_launch = false
   tags = { Name = "grafana-subnet" }
 }
@@ -96,140 +112,159 @@ resource "random_id" "suffix" {
 resource "aws_security_group" "web_sg" {
   name   = "web-sg-${random_id.suffix.hex}"
   vpc_id = data.aws_vpc.default.id
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["82.170.150.87/32", "145.93.76.108/32"]
-  }
-
-  ingress {
-    from_port       = 9100
-    to_port         = 9100
-    protocol        = "tcp"
-    security_groups = [aws_security_group.grafana_sg.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 }
 
 resource "aws_security_group" "db_sg" {
   name   = "db-sg-${random_id.suffix.hex}"
   vpc_id = data.aws_vpc.default.id
-
-  ingress {
-    from_port       = 3306
-    to_port         = 3306
-    protocol        = "tcp"
-    security_groups = [aws_security_group.web_sg.id]
-  }
-
-  ingress {
-    from_port       = 9100
-    to_port         = 9100
-    protocol        = "tcp"
-    security_groups = [aws_security_group.grafana_sg.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 }
 
 resource "aws_security_group" "grafana_sg" {
-  name   = "grafana-sg"
+  name   = "grafana-sg-${random_id.suffix.hex}"
   vpc_id = data.aws_vpc.default.id
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["82.170.150.87/32", "145.93.76.108/32"]
-  }
-
-  ingress {
-    from_port   = 3000
-    to_port     = 3000
-    protocol    = "tcp"
-    cidr_blocks = ["82.170.150.87/32", "145.93.76.108/32"]
-  }
-
-  ingress {
-    from_port       = 9100
-    to_port         = 9100
-    protocol        = "tcp"
-    security_groups = [aws_security_group.web_sg.id]
-  }
-
-  ingress {
-    from_port       = 9090
-    to_port         = 9090
-    protocol        = "tcp"
-    security_groups = [aws_security_group.soar_sg.id]
-  }
-
-  ingress {
-    from_port       = 3306
-    to_port         = 3306
-    protocol        = "tcp"
-    security_groups = [aws_security_group.db_sg.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 }
 
 resource "aws_security_group" "soar_sg" {
   name   = "soar-sg-${random_id.suffix.hex}"
   vpc_id = data.aws_vpc.default.id
+}
 
-  ingress {
-    from_port       = 9100
-    to_port         = 9100
-    protocol        = "tcp"
-    security_groups = [aws_security_group.web_sg.id]
-  }
+resource "aws_security_group" "lb_sg" {
+  name   = "lb-sg-${random_id.suffix.hex}"
+  vpc_id = data.aws_vpc.default.id
+}
 
-  ingress {
-    from_port       = 3306
-    to_port         = 3306
-    protocol        = "tcp"
-    security_groups = [aws_security_group.db_sg.id]
-  }
+# ----------------------
+# Security Group Rules
+# ----------------------
+# Webserver rules
+resource "aws_security_group_rule" "web_http" {
+  type                       = "ingress"
+  from_port                  = 80
+  to_port                    = 80
+  protocol                   = "tcp"
+  security_group_id          = aws_security_group.web_sg.id
+  source_security_group_id   = aws_security_group.lb_sg.id
+}
 
-  ingress {
-    from_port       = 9090
-    to_port         = 9090
-    protocol        = "tcp"
-    security_groups = [aws_security_group.grafana_sg.id]
-  }
+resource "aws_security_group_rule" "web_https" {
+  type                       = "ingress"
+  from_port                  = 443
+  to_port                    = 443
+  protocol                   = "tcp"
+  security_group_id          = aws_security_group.web_sg.id
+  source_security_group_id   = aws_security_group.lb_sg.id
+}
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+resource "aws_security_group_rule" "web_ssh" {
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  security_group_id = aws_security_group.web_sg.id
+  cidr_blocks       = ["82.170.150.87/32","145.93.76.108/32"]
+}
+
+resource "aws_security_group_rule" "web_prom" {
+  type                       = "ingress"
+  from_port                  = 9100
+  to_port                    = 9100
+  protocol                   = "tcp"
+  security_group_id          = aws_security_group.web_sg.id
+  source_security_group_id   = aws_security_group.grafana_sg.id
+}
+
+# Database rules
+resource "aws_security_group_rule" "db_mysql" {
+  type                       = "ingress"
+  from_port                  = 3306
+  to_port                    = 3306
+  protocol                   = "tcp"
+  security_group_id          = aws_security_group.db_sg.id
+  source_security_group_id   = aws_security_group.web_sg.id
+}
+
+resource "aws_security_group_rule" "db_prom" {
+  type                       = "ingress"
+  from_port                  = 9100
+  to_port                    = 9100
+  protocol                   = "tcp"
+  security_group_id          = aws_security_group.db_sg.id
+  source_security_group_id   = aws_security_group.grafana_sg.id
+}
+
+# Grafana rules
+resource "aws_security_group_rule" "grafana_prom" {
+  type                       = "ingress"
+  from_port                  = 9100
+  to_port                    = 9100
+  protocol                   = "tcp"
+  security_group_id          = aws_security_group.grafana_sg.id
+  source_security_group_id   = aws_security_group.web_sg.id
+}
+
+resource "aws_security_group_rule" "grafana_soar" {
+  type                       = "ingress"
+  from_port                  = 9090
+  to_port                    = 9090
+  protocol                   = "tcp"
+  security_group_id          = aws_security_group.grafana_sg.id
+  source_security_group_id   = aws_security_group.soar_sg.id
+}
+
+resource "aws_security_group_rule" "grafana_db" {
+  type                       = "ingress"
+  from_port                  = 3306
+  to_port                    = 3306
+  protocol                   = "tcp"
+  security_group_id          = aws_security_group.grafana_sg.id
+  source_security_group_id   = aws_security_group.db_sg.id
+}
+
+resource "aws_security_group_rule" "grafana_http" {
+  type              = "ingress"
+  from_port         = 3000
+  to_port           = 3000
+  protocol          = "tcp"
+  security_group_id = aws_security_group.grafana_sg.id
+  cidr_blocks       = ["82.170.150.87/32","145.93.76.108/32"]
+}
+
+resource "aws_security_group_rule" "grafana_ssh" {
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  security_group_id = aws_security_group.grafana_sg.id
+  cidr_blocks       = ["82.170.150.87/32","145.93.76.108/32"]
+}
+
+# SOAR rules
+resource "aws_security_group_rule" "soar_web" {
+  type                       = "ingress"
+  from_port                  = 9100
+  to_port                    = 9100
+  protocol                   = "tcp"
+  security_group_id          = aws_security_group.soar_sg.id
+  source_security_group_id   = aws_security_group.web_sg.id
+}
+
+resource "aws_security_group_rule" "soar_db" {
+  type                       = "ingress"
+  from_port                  = 3306
+  to_port                    = 3306
+  protocol                   = "tcp"
+  security_group_id          = aws_security_group.soar_sg.id
+  source_security_group_id   = aws_security_group.db_sg.id
+}
+
+resource "aws_security_group_rule" "soar_grafana" {
+  type                       = "ingress"
+  from_port                  = 9090
+  to_port                    = 9090
+  protocol                   = "tcp"
+  security_group_id          = aws_security_group.soar_sg.id
+  source_security_group_id   = aws_security_group.grafana_sg.id
 }
 
 # ----------------------
@@ -237,7 +272,7 @@ resource "aws_security_group" "soar_sg" {
 # ----------------------
 resource "aws_db_subnet_group" "db_subnet_group" {
   name       = "db-subnet-group"
-  subnet_ids = [aws_subnet.db_subnet1.id, aws_subnet.db_subnet2.id]
+  subnet_ids = [aws_subnet.db1_subnet.id, aws_subnet.db2_subnet.id]
 }
 
 resource "aws_db_instance" "db" {
@@ -257,7 +292,7 @@ resource "aws_db_instance" "db" {
 }
 
 # ----------------------
-# User Data voor Webservers
+# User Data voor Webservers (Nginx + Node Exporter + DB test)
 # ----------------------
 locals {
   user_data = <<-EOT
@@ -265,7 +300,6 @@ locals {
     yum update -y
     amazon-linux-extras enable nginx1
     yum install -y nginx mysql wget tar
-
     systemctl start nginx
     systemctl enable nginx
 
@@ -281,11 +315,30 @@ locals {
     echo "<p>Deze webserver IP: $MY_IP</p>" >> /usr/share/nginx/html/index.html
     echo "<p>Database verbindingstest: $DB_TEST</p>" >> /usr/share/nginx/html/index.html
 
-    echo "DB_HOST=${aws_db_instance.db.address}" >> /etc/environment
-    echo "DB_PORT=${aws_db_instance.db.port}" >> /etc/environment
-    echo "DB_USER=admin" >> /etc/environment
-    echo "DB_PASS=SuperSecret123!" >> /etc/environment
-    echo "DB_NAME=myappdb" >> /etc/environment
+    # Node Exporter installatie
+    useradd --no-create-home --shell /bin/false node_exporter
+    cd /tmp
+    wget https://github.com/prometheus/node_exporter/releases/download/v1.6.0/node_exporter-1.6.0.linux-amd64.tar.gz
+    tar xvf node_exporter-1.6.0.linux-amd64.tar.gz
+    cp node_exporter-1.6.0.linux-amd64/node_exporter /usr/local/bin/
+    chown node_exporter:node_exporter /usr/local/bin/node_exporter
+    chmod 755 /usr/local/bin/node_exporter
+
+    cat <<EOF >/etc/systemd/system/node_exporter.service
+    [Unit]
+    Description=Node Exporter
+    After=network.target
+
+    [Service]
+    User=node_exporter
+    ExecStart=/usr/local/bin/node_exporter
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+
+    systemctl daemon-reload
+    systemctl enable --now node_exporter
   EOT
 }
 
@@ -325,51 +378,7 @@ resource "aws_instance" "grafana" {
 }
 
 # ----------------------
-# SOAR DynamoDB
-# ----------------------
-resource "aws_dynamodb_table" "soar_logs" {
-  name         = "soar-logs-${random_id.suffix.hex}"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "Event"
-
-  attribute {
-    name = "Event"
-    type = "S"
-  }
-}
-
-# ----------------------
-# SOAR Lambda IAM Role
-# ----------------------
-resource "aws_iam_role" "lambda_role" {
-  name = "soar-lambda-role-${random_id.suffix.hex}"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Action    = "sts:AssumeRole"
-      Effect    = "Allow"
-      Principal = { Service = "lambda.amazonaws.com" }
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_ec2_policy" {
-  role       = aws_iam_role.lambda_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_dynamodb_policy" {
-  role       = aws_iam_role.lambda_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_sns_policy" {
-  role       = aws_iam_role.lambda_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
-}
-
-# ----------------------
-# SOAR Lambda Function
+# SOAR Lambda
 # ----------------------
 resource "aws_lambda_function" "soar_lambda" {
   function_name = "soar-lambda-${random_id.suffix.hex}"
@@ -377,16 +386,13 @@ resource "aws_lambda_function" "soar_lambda" {
   runtime       = "python3.10"
   role          = aws_iam_role.lambda_role.arn
   filename      = "lambda_function_payload.zip"
-
   vpc_config {
     subnet_ids         = [aws_subnet.soar_subnet.id]
     security_group_ids = [aws_security_group.soar_sg.id]
   }
-
   environment {
     variables = {
       DYNAMODB_TABLE = aws_dynamodb_table.soar_logs.name
-      PROJECT_NAME   = "Project1"
     }
   }
 }
@@ -398,8 +404,8 @@ resource "aws_lb" "web_lb" {
   name               = "web-lb"
   internal           = false
   load_balancer_type = "application"
-  subnets            = [aws_subnet.web1_subnet.id, aws_subnet.web2_subnet.id]
-  security_groups    = [aws_security_group.web_sg.id]
+  subnets            = [aws_subnet.public1.id, aws_subnet.public2.id]
+  security_groups    = [aws_security_group.lb_sg.id]
 }
 
 resource "aws_lb_target_group" "web_tg" {
@@ -408,16 +414,6 @@ resource "aws_lb_target_group" "web_tg" {
   protocol    = "HTTP"
   vpc_id      = data.aws_vpc.default.id
   target_type = "instance"
-
-  health_check {
-    path                = "/"
-    protocol            = "HTTP"
-    matcher             = "200"
-    interval            = 30
-    timeout             = 5
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-  }
 }
 
 resource "aws_lb_listener" "web_listener" {
@@ -456,12 +452,4 @@ output "db_endpoint" {
 
 output "grafana_public_ip" {
   value = aws_instance.grafana.public_ip
-}
-
-output "soar_lambda_arn" {
-  value = aws_lambda_function.soar_lambda.arn
-}
-
-output "soar_dynamodb_table" {
-  value = aws_dynamodb_table.soar_logs.name
 }
