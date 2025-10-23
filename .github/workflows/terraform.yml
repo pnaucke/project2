@@ -1,4 +1,4 @@
-name: Terraform Deploy Project2
+name: Terraform Deploy to AWS
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Setup Terraform
