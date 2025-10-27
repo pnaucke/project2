@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket         = "innovatech-terraform-state"   # jouw S3 bucketnaam
+    bucket         = "innovatech-terraform-state"
     key            = "terraform.tfstate"
     region         = "eu-central-1"
     dynamodb_table = "terraform-locks"
@@ -100,7 +100,7 @@ resource "random_id" "suffix" {
 }
 
 # ----------------------
-# Security Groups (create SGs first without cross-references)
+# Security Groups
 # ----------------------
 resource "aws_security_group" "web_sg" {
   name   = "web-sg-${random_id.suffix.hex}"
@@ -177,9 +177,8 @@ resource "aws_security_group" "lb_sg" {
 }
 
 # ----------------------
-# Security Group Rules (cross-SG references as separate resources)
+# Security Group Rules
 # ----------------------
-
 # Webserver Rules
 resource "aws_security_group_rule" "web_from_lb_http" {
   type                     = "ingress"
@@ -348,11 +347,13 @@ resource "aws_db_instance" "db" {
 }
 
 # ----------------------
-# User Data voor Webservers
+# User Data voor Webservers (met Node Exporter fix)
 # ----------------------
 locals {
   user_data = <<-EOT
     #!/bin/bash
+    set -e
+
     yum update -y
     amazon-linux-extras enable nginx1 -y
     yum install -y nginx mysql wget tar
@@ -363,10 +364,7 @@ locals {
     MY_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
 
     DB_TEST="OK"
-    mysql -h ${aws_db_instance.db.address} -uadmin -pSuperSecret123! -e "SELECT 1;" > /dev/null 2>&1
-    if [ $? -ne 0 ]; then
-      DB_TEST="FAILED"
-    fi
+    mysql -h ${aws_db_instance.db.address} -uadmin -pSuperSecret123! -e "SELECT 1;" > /dev/null 2>&1 || DB_TEST="FAILED"
 
     echo "<h1>Welkom bij mijn website!</h1>" > /usr/share/nginx/html/index.html
     echo "<p>Deze webserver IP: $MY_IP</p>" >> /usr/share/nginx/html/index.html
@@ -380,10 +378,11 @@ locals {
 
     # Node Exporter
     useradd --no-create-home --shell /bin/false node_exporter
+    NODE_VER="1.8.0"
     cd /tmp
-    wget https://github.com/prometheus/node_exporter/releases/download/v1.8.0/node_exporter-1.8.0.linux-amd64.tar.gz
-    tar xvf node_exporter-1.8.0.linux-amd64.tar.gz
-    cp node_exporter-1.8.0.linux-amd64/node_exporter /usr/local/bin/
+    wget -q https://github.com/prometheus/node_exporter/releases/download/v$NODE_VER/node_exporter-$NODE_VER.linux-amd64.tar.gz
+    tar xzf node_exporter-$NODE_VER.linux-amd64.tar.gz
+    mv node_exporter-$NODE_VER.linux-amd64/node_exporter /usr/local/bin/node_exporter
     chown node_exporter:node_exporter /usr/local/bin/node_exporter
 
     cat <<EOF >/etc/systemd/system/node_exporter.service
@@ -400,8 +399,7 @@ locals {
     EOF
 
     systemctl daemon-reload
-    systemctl enable node_exporter
-    systemctl start node_exporter
+    systemctl enable --now node_exporter
   EOT
 }
 
@@ -564,17 +562,6 @@ resource "aws_lb_target_group_attachment" "web2_attach" {
 # ----------------------
 # Outputs
 # ----------------------
-output "load_balancer_dns" {
-  value = aws_lb.web_lb.dns_name
-}
-
-output "db_endpoint" {
-  value = aws_db_instance.db.address
-}
-
-output "grafana_private_ip" {
-  value = aws_instance.grafana.private_ip
-}
-# ----------------------
-# Feest
-# ----------------------
+output "load_balancer_dns" { value = aws_lb.web_lb.dns_name }
+output "db_endpoint" { value = aws_db_instance.db.address }
+output "grafana_private_ip" { value = aws_instance.grafana.private_ip }
