@@ -577,3 +577,6 @@ output "db_endpoint" {
 output "grafana_private_ip" {
   value = aws_instance.grafana.private_ip
 }
+# ----------------------
+# Feest
+# ----------------------
