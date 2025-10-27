@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket         = "innovatech-terraform-state"
+    bucket         = "innovatech-terraform-state"   # jouw S3 bucketnaam
     key            = "terraform.tfstate"
     region         = "eu-central-1"
     dynamodb_table = "terraform-locks"
@@ -100,10 +100,34 @@ resource "random_id" "suffix" {
 }
 
 # ----------------------
-# Security Groups
+# Security Groups (create SGs first without cross-references)
 # ----------------------
 resource "aws_security_group" "web_sg" {
   name   = "web-sg-${random_id.suffix.hex}"
+  vpc_id = data.aws_vpc.default.id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "db_sg" {
+  name   = "db-sg-${random_id.suffix.hex}"
+  vpc_id = data.aws_vpc.default.id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "soar_sg" {
+  name   = "soar-sg-${random_id.suffix.hex}"
   vpc_id = data.aws_vpc.default.id
 
   egress {
@@ -152,7 +176,29 @@ resource "aws_security_group" "lb_sg" {
   }
 }
 
-# Security group rule for Prometheus scraping
+# ----------------------
+# Security Group Rules (cross-SG references as separate resources)
+# ----------------------
+
+# Webserver Rules
+resource "aws_security_group_rule" "web_from_lb_http" {
+  type                     = "ingress"
+  from_port                = 80
+  to_port                  = 80
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.web_sg.id
+  source_security_group_id = aws_security_group.lb_sg.id
+}
+
+resource "aws_security_group_rule" "web_from_lb_https" {
+  type                     = "ingress"
+  from_port                = 443
+  to_port                  = 443
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.web_sg.id
+  source_security_group_id = aws_security_group.lb_sg.id
+}
+
 resource "aws_security_group_rule" "web_from_grafana" {
   type                     = "ingress"
   from_port                = 9100
@@ -162,53 +208,202 @@ resource "aws_security_group_rule" "web_from_grafana" {
   source_security_group_id = aws_security_group.grafana_sg.id
 }
 
+resource "aws_security_group_rule" "web_ssh_from_admins" {
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  security_group_id = aws_security_group.web_sg.id
+  cidr_blocks       = ["82.170.150.87/32", "145.93.76.108/32"]
+}
+
+# DB Rules
+resource "aws_security_group_rule" "db_from_web" {
+  type                     = "ingress"
+  from_port                = 3306
+  to_port                  = 3306
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.db_sg.id
+  source_security_group_id = aws_security_group.web_sg.id
+}
+
+resource "aws_security_group_rule" "db_from_grafana" {
+  type                     = "ingress"
+  from_port                = 9100
+  to_port                  = 9100
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.db_sg.id
+  source_security_group_id = aws_security_group.grafana_sg.id
+}
+
+# SOAR Rules
+resource "aws_security_group_rule" "soar_from_web" {
+  type                     = "ingress"
+  from_port                = 9100
+  to_port                  = 9100
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.soar_sg.id
+  source_security_group_id = aws_security_group.web_sg.id
+}
+
+resource "aws_security_group_rule" "soar_from_db" {
+  type                     = "ingress"
+  from_port                = 3306
+  to_port                  = 3306
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.soar_sg.id
+  source_security_group_id = aws_security_group.db_sg.id
+}
+
+resource "aws_security_group_rule" "soar_from_grafana" {
+  type                     = "ingress"
+  from_port                = 9090
+  to_port                  = 9090
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.soar_sg.id
+  source_security_group_id = aws_security_group.grafana_sg.id
+}
+
+# Grafana Rules
+resource "aws_security_group_rule" "grafana_from_web" {
+  type                     = "ingress"
+  from_port                = 9100
+  to_port                  = 9100
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.grafana_sg.id
+  source_security_group_id = aws_security_group.web_sg.id
+}
+
+resource "aws_security_group_rule" "grafana_from_soar" {
+  type                     = "ingress"
+  from_port                = 9090
+  to_port                  = 9090
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.grafana_sg.id
+  source_security_group_id = aws_security_group.soar_sg.id
+}
+
+resource "aws_security_group_rule" "grafana_from_db" {
+  type                     = "ingress"
+  from_port                = 3306
+  to_port                  = 3306
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.grafana_sg.id
+  source_security_group_id = aws_security_group.db_sg.id
+}
+
+# Grafana public access
+resource "aws_security_group_rule" "grafana_http_public" {
+  type              = "ingress"
+  from_port         = 3000
+  to_port           = 3000
+  protocol          = "tcp"
+  security_group_id = aws_security_group.grafana_sg.id
+  cidr_blocks       = ["82.170.150.87/32", "145.93.76.108/32"]
+}
+
+resource "aws_security_group_rule" "grafana_ssh_public" {
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  security_group_id = aws_security_group.grafana_sg.id
+  cidr_blocks       = ["82.170.150.87/32", "145.93.76.108/32"]
+}
+
+resource "aws_security_group_rule" "grafana_prometheus_public" {
+  type              = "ingress"
+  from_port         = 9090
+  to_port           = 9090
+  protocol          = "tcp"
+  security_group_id = aws_security_group.grafana_sg.id
+  cidr_blocks       = ["82.170.150.87/32", "145.93.76.108/32"]
+}
+
 # ----------------------
-# User Data voor Webservers (Node Exporter automatisch)
+# DB Subnet Group
+# ----------------------
+resource "aws_db_subnet_group" "db_subnet_group" {
+  name       = "db-subnet-group"
+  subnet_ids = [aws_subnet.db_subnet1.id, aws_subnet.db_subnet2.id]
+}
+
+# ----------------------
+# RDS Database
+# ----------------------
+resource "aws_db_instance" "db" {
+  identifier              = "mydb-${random_id.suffix.hex}"
+  allocated_storage       = 20
+  engine                  = "mysql"
+  engine_version          = "8.0"
+  instance_class          = "db.t3.micro"
+  db_name                 = "myappdb"
+  username                = "admin"
+  password                = "SuperSecret123!"
+  parameter_group_name    = "default.mysql8.0"
+  skip_final_snapshot     = true
+  vpc_security_group_ids  = [aws_security_group.db_sg.id]
+  db_subnet_group_name    = aws_db_subnet_group.db_subnet_group.name
+  publicly_accessible     = false
+}
+
+# ----------------------
+# User Data voor Webservers
 # ----------------------
 locals {
-  web_user_data = <<-EOT
+  user_data = <<-EOT
     #!/bin/bash
-    set -e
-
     yum update -y
-    amazon-linux-extras enable nginx1 -y
-    yum install -y nginx wget tar
+    amazon-linux-extras enable nginx1
+    yum install -y nginx mysql wget tar
 
     systemctl start nginx
     systemctl enable nginx
 
-    # Node Exporter
-    useradd --no-create-home --shell /bin/false node_exporter
+    MY_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
 
+    DB_TEST="OK"
+    mysql -h ${aws_db_instance.db.address} -uadmin -pSuperSecret123! -e "SELECT 1;" > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+      DB_TEST="FAILED"
+    fi
+
+    echo "<h1>Welkom bij mijn website!</h1>" > /usr/share/nginx/html/index.html
+    echo "<p>Deze webserver IP: $MY_IP</p>" >> /usr/share/nginx/html/index.html
+    echo "<p>Database verbindingstest: $DB_TEST</p>" >> /usr/share/nginx/html/index.html
+
+    echo "DB_HOST=${aws_db_instance.db.address}" >> /etc/environment
+    echo "DB_PORT=${aws_db_instance.db.port}" >> /etc/environment
+    echo "DB_USER=admin" >> /etc/environment
+    echo "DB_PASS=SuperSecret123!" >> /etc/environment
+    echo "DB_NAME=myappdb" >> /etc/environment
+
+    # ----------------------
+    # Node Exporter installatie
+    # ----------------------
+    useradd --no-create-home --shell /bin/false node_exporter
     cd /tmp
-    wget https://github.com/prometheus/node_exporter/releases/download/v1.8.0/node_exporter-1.8.0.linux-amd64.tar.gz
-    tar xvf node_exporter-1.8.0.linux-amd64.tar.gz
-    cp node_exporter-1.8.0.linux-amd64/node_exporter /usr/local/bin/
-    chown node_exporter:node_exporter /usr/local/bin/node_exporter
+    wget https://github.com/prometheus/node_exporter/releases/download/v1.9.2/node_exporter-1.9.2.linux-amd64.tar.gz
+    tar xvf node_exporter-1.9.2.linux-amd64.tar.gz
+    cp node_exporter-1.9.2.linux-amd64/node_exporter /usr/local/bin/
     chmod +x /usr/local/bin/node_exporter
 
-    # Systemd service
+    # systemd service voor Node Exporter
     cat <<EOF >/etc/systemd/system/node_exporter.service
-    [Unit]
-    Description=Node Exporter
-    After=network.target
+[Unit]
+Description=Node Exporter
+After=network.target
 
-    [Service]
-    User=node_exporter
-    ExecStart=/usr/local/bin/node_exporter
+[Service]
+User=node_exporter
+ExecStart=/usr/local/bin/node_exporter
 
-    [Install]
-    WantedBy=multi-user.target
-    EOF
+[Install]
+WantedBy=multi-user.target
+EOF
 
     systemctl daemon-reload
     systemctl enable --now node_exporter
-
-    # Wait until Node Exporter is serving metrics
-    until curl -s http://127.0.0.1:9100/metrics; do
-        echo "Waiting for Node Exporter..."
-        sleep 5
-    done
   EOT
 }
 
@@ -222,12 +417,8 @@ resource "aws_instance" "web1" {
   private_ip             = "172.31.1.10"
   vpc_security_group_ids = [aws_security_group.web_sg.id]
   key_name               = "Project1"
-  user_data              = local.web_user_data
+  user_data              = local.user_data
   tags = { Name = "web1" }
-
-  lifecycle {
-    create_before_destroy = true
-  }
 }
 
 resource "aws_instance" "web2" {
@@ -237,12 +428,8 @@ resource "aws_instance" "web2" {
   private_ip             = "172.31.11.10"
   vpc_security_group_ids = [aws_security_group.web_sg.id]
   key_name               = "Project1"
-  user_data              = local.web_user_data
+  user_data              = local.user_data
   tags = { Name = "web2" }
-
-  lifecycle {
-    create_before_destroy = true
-  }
 }
 
 # ----------------------
@@ -266,7 +453,8 @@ locals {
     EOF
 
     yum install -y grafana
-    systemctl enable --now grafana-server
+    systemctl enable grafana-server
+    systemctl start grafana-server
 
     # Install Prometheus
     cd /tmp
@@ -380,6 +568,10 @@ resource "aws_lb_target_group_attachment" "web2_attach" {
 # ----------------------
 output "load_balancer_dns" {
   value = aws_lb.web_lb.dns_name
+}
+
+output "db_endpoint" {
+  value = aws_db_instance.db.address
 }
 
 output "grafana_private_ip" {
