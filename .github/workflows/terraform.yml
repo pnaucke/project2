@@ -32,24 +32,6 @@ jobs:
       - name: Terraform Init (S3 backend)
         run: terraform init -input=false -upgrade
 
-      - name: Check for Terraform State Lock
-        id: check-lock
-        run: |
-          LOCK_FILE=$(terraform state pull | grep '"ID":' | head -n1 | awk -F'"' '{print $4}' || echo "")
-          if [ -n "$LOCK_FILE" ]; then
-            echo "Terraform lock detected: $LOCK_FILE"
-            echo "force_unlock=true" >> $GITHUB_ENV
-          else
-            echo "No active lock detected"
-            echo "force_unlock=false" >> $GITHUB_ENV
-          fi
-
-      - name: Force Unlock if Needed
-        if: env.force_unlock == 'true'
-        run: |
-          echo "Force unlocking Terraform state..."
-          terraform force-unlock -force $LOCK_FILE
-
       - name: Terraform Validate
         run: terraform validate
 
