@@ -311,6 +311,15 @@ resource "aws_security_group_rule" "grafana_ssh_public" {
   cidr_blocks       = ["82.170.150.87/32", "145.93.76.108/32"]
 }
 
+resource "aws_security_group_rule" "grafana_prometheus_public" {
+  type              = "ingress"
+  from_port         = 9090
+  to_port           = 9090
+  protocol          = "tcp"
+  security_group_id = aws_security_group.grafana_sg.id
+  cidr_blocks       = ["82.170.150.87/32", "145.93.76.108/32"]
+}
+
 # ----------------------
 # DB Subnet Group
 # ----------------------
