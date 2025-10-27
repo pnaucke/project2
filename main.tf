@@ -354,7 +354,7 @@ locals {
   user_data = <<-EOT
     #!/bin/bash
     yum update -y
-    amazon-linux-extras enable nginx1
+    amazon-linux-extras enable nginx1 -y
     yum install -y nginx mysql wget tar
 
     systemctl start nginx
@@ -378,30 +378,30 @@ locals {
     echo "DB_PASS=SuperSecret123!" >> /etc/environment
     echo "DB_NAME=myappdb" >> /etc/environment
 
-    # Node Exporter installatie
+    # Node Exporter
     useradd --no-create-home --shell /bin/false node_exporter
     cd /tmp
-    wget https://github.com/prometheus/node_exporter/releases/download/v1.9.2/node_exporter-1.9.2.linux-amd64.tar.gz
-    tar xvf node_exporter-1.9.2.linux-amd64.tar.gz
-    sudo cp node_exporter-1.9.2.linux-amd64/node_exporter /usr/local/bin/
-    sudo chmod +x /usr/local/bin/node_exporter
+    wget https://github.com/prometheus/node_exporter/releases/download/v1.8.0/node_exporter-1.8.0.linux-amd64.tar.gz
+    tar xvf node_exporter-1.8.0.linux-amd64.tar.gz
+    cp node_exporter-1.8.0.linux-amd64/node_exporter /usr/local/bin/
+    chown node_exporter:node_exporter /usr/local/bin/node_exporter
 
-    # systemd service
-    sudo tee /etc/systemd/system/node_exporter.service > /dev/null <<EOF
-[Unit]
-Description=Node Exporter
-After=network.target
+    cat <<EOF >/etc/systemd/system/node_exporter.service
+    [Unit]
+    Description=Node Exporter
+    After=network.target
 
-[Service]
-User=node_exporter
-ExecStart=/usr/local/bin/node_exporter
+    [Service]
+    User=node_exporter
+    ExecStart=/usr/local/bin/node_exporter
 
-[Install]
-WantedBy=multi-user.target
-EOF
+    [Install]
+    WantedBy=multi-user.target
+    EOF
 
     systemctl daemon-reload
-    systemctl enable --now node_exporter
+    systemctl enable node_exporter
+    systemctl start node_exporter
   EOT
 }
 
