@@ -383,8 +383,8 @@ locals {
     cd /tmp
     wget https://github.com/prometheus/node_exporter/releases/download/v1.9.2/node_exporter-1.9.2.linux-amd64.tar.gz
     tar xvf node_exporter-1.9.2.linux-amd64.tar.gz
-    cp node_exporter-1.9.2.linux-amd64/node_exporter /usr/local/bin/
-    chown node_exporter:node_exporter /usr/local/bin/node_exporter
+    sudo cp node_exporter-1.9.2.linux-amd64/node_exporter /usr/local/bin/
+    sudo chmod +x /usr/local/bin/node_exporter
 
     # systemd service
     sudo tee /etc/systemd/system/node_exporter.service > /dev/null <<EOF
