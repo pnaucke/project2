@@ -2,7 +2,7 @@ resource "random_id" "suffix" {
   byte_length = 2
 }
 
-# Security Groups
+# Security Groups.
 resource "aws_security_group" "web_sg" {
   name   = "web-sg-${random_id.suffix.hex}"
   vpc_id = data.aws_vpc.default.id
