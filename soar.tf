@@ -1,19 +1,19 @@
 locals {
   soar_user_data = <<-EOT
-    #!/bin/bash
-    yum update -y
-    yum install -y wget tar
+#!/bin/bash
+yum update -y
+yum install -y wget tar
 
-    # SOAR installatie (voorbeeld)
-    cd /tmp
-    wget https://example.com/soar-latest.tar.gz
-    tar xvf soar-latest.tar.gz
-    cd soar
-    ./install.sh
+# SOAR installatie (voorbeeld)
+cd /tmp
+wget https://example.com/soar-latest.tar.gz
+tar xvf soar-latest.tar.gz
+cd soar
+./install.sh
 
-    systemctl enable soar
-    systemctl start soar
-  EOT
+systemctl enable soar
+systemctl start soar
+EOT
 }
 
 resource "aws_instance" "soar" {

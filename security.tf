@@ -70,8 +70,7 @@ resource "aws_security_group" "lb_sg" {
   }
 }
 
-# Security Group Rules: web, db, soar, grafana
-# Web server toegang via LB
+# Security Group Rules
 resource "aws_security_group_rule" "web_from_lb_http" {
   type                     = "ingress"
   from_port                = 80
@@ -80,6 +79,7 @@ resource "aws_security_group_rule" "web_from_lb_http" {
   security_group_id        = aws_security_group.web_sg.id
   source_security_group_id = aws_security_group.lb_sg.id
 }
+
 resource "aws_security_group_rule" "web_from_lb_https" {
   type                     = "ingress"
   from_port                = 443
@@ -88,6 +88,7 @@ resource "aws_security_group_rule" "web_from_lb_https" {
   security_group_id        = aws_security_group.web_sg.id
   source_security_group_id = aws_security_group.lb_sg.id
 }
+
 resource "aws_security_group_rule" "web_ssh_from_admins" {
   type              = "ingress"
   from_port         = 22
@@ -97,7 +98,6 @@ resource "aws_security_group_rule" "web_ssh_from_admins" {
   cidr_blocks       = ["82.170.150.87/32","145.93.76.108/32"]
 }
 
-# DB Rules
 resource "aws_security_group_rule" "db_from_web" {
   type                     = "ingress"
   from_port                = 3306
@@ -107,7 +107,6 @@ resource "aws_security_group_rule" "db_from_web" {
   source_security_group_id = aws_security_group.web_sg.id
 }
 
-# SOAR Rules
 resource "aws_security_group_rule" "soar_from_web" {
   type                     = "ingress"
   from_port                = 9100
@@ -117,7 +116,6 @@ resource "aws_security_group_rule" "soar_from_web" {
   source_security_group_id = aws_security_group.web_sg.id
 }
 
-# Grafana Rules
 resource "aws_security_group_rule" "grafana_http_public" {
   type              = "ingress"
   from_port         = 3000

@@ -1,41 +1,50 @@
+# AMI declaratie toegevoegd
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+}
+
 locals {
   user_data = <<-EOT
-    #!/bin/bash
-    yum update -y
-    amazon-linux-extras enable nginx1
-    yum install -y nginx mysql wget tar
+#!/bin/bash
+yum update -y
+amazon-linux-extras enable nginx1
+yum install -y nginx mysql wget tar
 
-    systemctl start nginx
-    systemctl enable nginx
+systemctl start nginx
+systemctl enable nginx
 
-    MY_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+MY_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
 
-    DB_TEST="OK"
-    mysql -h ${aws_db_instance.db.address} -uadmin -pSuperSecret123! -e "SELECT 1;" > /dev/null 2>&1
-    if [ $? -ne 0 ]; then
-      DB_TEST="FAILED"
-    fi
+DB_TEST="OK"
+mysql -h ${aws_db_instance.db.address} -uadmin -pSuperSecret123! -e "SELECT 1;" > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+  DB_TEST="FAILED"
+fi
 
-    echo "<h1>Welkom bij mijn website!</h1>" > /usr/share/nginx/html/index.html
-    echo "<p>Deze webserver IP: $MY_IP</p>" >> /usr/share/nginx/html/index.html
-    echo "<p>Database verbindingstest: $DB_TEST</p>" >> /usr/share/nginx/html/index.html
+echo "<h1>Welkom bij mijn website!</h1>" > /usr/share/nginx/html/index.html
+echo "<p>Deze webserver IP: $MY_IP</p>" >> /usr/share/nginx/html/index.html
+echo "<p>Database verbindingstest: $DB_TEST</p>" >> /usr/share/nginx/html/index.html
 
-    echo "DB_HOST=${aws_db_instance.db.address}" >> /etc/environment
-    echo "DB_PORT=${aws_db_instance.db.port}" >> /etc/environment
-    echo "DB_USER=admin" >> /etc/environment
-    echo "DB_PASS=SuperSecret123!" >> /etc/environment
-    echo "DB_NAME=myappdb" >> /etc/environment
+echo "DB_HOST=${aws_db_instance.db.address}" >> /etc/environment
+echo "DB_PORT=${aws_db_instance.db.port}" >> /etc/environment
+echo "DB_USER=admin" >> /etc/environment
+echo "DB_PASS=SuperSecret123!" >> /etc/environment
+echo "DB_NAME=myappdb" >> /etc/environment
 
-    # Node Exporter installatie
-    useradd --no-create-home --shell /bin/false node_exporter
-    cd /tmp
-    wget https://github.com/prometheus/node_exporter/releases/download/v1.9.2/node_exporter-1.9.2.linux-amd64.tar.gz
-    tar xvf node_exporter-1.9.2.linux-amd64.tar.gz
-    cp node_exporter-1.9.2.linux-amd64/node_exporter /usr/local/bin/
-    chmod +x /usr/local/bin/node_exporter
+# Node Exporter installatie
+useradd --no-create-home --shell /bin/false node_exporter
+cd /tmp
+wget https://github.com/prometheus/node_exporter/releases/download/v1.9.2/node_exporter-1.9.2.linux-amd64.tar.gz
+tar xvf node_exporter-1.9.2.linux-amd64.tar.gz
+cp node_exporter-1.9.2.linux-amd64/node_exporter /usr/local/bin/
+chmod +x /usr/local/bin/node_exporter
 
-    # systemd service
-    tee /etc/systemd/system/node_exporter.service > /dev/null <<EOF
+tee /etc/systemd/system/node_exporter.service > /dev/null <<EOF
 [Unit]
 Description=Node Exporter
 After=network.target
@@ -48,9 +57,9 @@ ExecStart=/usr/local/bin/node_exporter
 WantedBy=multi-user.target
 EOF
 
-    systemctl daemon-reload
-    systemctl enable --now node_exporter
-  EOT
+systemctl daemon-reload
+systemctl enable --now node_exporter
+EOT
 }
 
 resource "aws_instance" "web1" {

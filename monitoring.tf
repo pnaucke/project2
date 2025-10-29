@@ -1,11 +1,11 @@
 locals {
   grafana_user_data = <<-EOT
-    #!/bin/bash
-    yum update -y
-    yum install -y wget tar
+#!/bin/bash
+yum update -y
+yum install -y wget tar
 
-    # Grafana installatie
-    cat <<EOF > /etc/yum.repos.d/grafana.repo
+# Grafana installatie
+cat <<EOF > /etc/yum.repos.d/grafana.repo
 [grafana]
 name=grafana
 baseurl=https://packages.grafana.com/oss/rpm
@@ -15,18 +15,18 @@ gpgcheck=1
 gpgkey=https://packages.grafana.com/gpg.key
 EOF
 
-    yum install -y grafana
-    systemctl enable grafana-server
-    systemctl start grafana-server
+yum install -y grafana
+systemctl enable grafana-server
+systemctl start grafana-server
 
-    # Prometheus installatie
-    cd /tmp
-    wget https://github.com/prometheus/prometheus/releases/download/v2.47.0/prometheus-2.47.0.linux-amd64.tar.gz
-    tar xvf prometheus-2.47.0.linux-amd64.tar.gz
-    cd prometheus-2.47.0.linux-amd64
+# Prometheus installatie
+cd /tmp
+wget https://github.com/prometheus/prometheus/releases/download/v2.47.0/prometheus-2.47.0.linux-amd64.tar.gz
+tar xvf prometheus-2.47.0.linux-amd64.tar.gz
+cd prometheus-2.47.0.linux-amd64
 
-    mkdir -p /etc/prometheus
-    cat <<EOF >/etc/prometheus/prometheus.yml
+mkdir -p /etc/prometheus
+cat <<EOF >/etc/prometheus/prometheus.yml
 global:
   scrape_interval: 15s
 
@@ -36,10 +36,10 @@ scrape_configs:
       - targets: ['${aws_instance.web1.private_ip}:9100','${aws_instance.web2.private_ip}:9100']
 EOF
 
-    cp prometheus /usr/local/bin/
-    cp promtool /usr/local/bin/
+cp prometheus /usr/local/bin/
+cp promtool /usr/local/bin/
 
-    cat <<EOF >/etc/systemd/system/prometheus.service
+cat <<EOF >/etc/systemd/system/prometheus.service
 [Unit]
 Description=Prometheus
 Wants=network-online.target
@@ -57,10 +57,10 @@ Restart=always
 WantedBy=multi-user.target
 EOF
 
-    mkdir -p /var/lib/prometheus
-    systemctl daemon-reload
-    systemctl enable --now prometheus
-  EOT
+mkdir -p /var/lib/prometheus
+systemctl daemon-reload
+systemctl enable --now prometheus
+EOT
 }
 
 resource "aws_instance" "grafana" {
