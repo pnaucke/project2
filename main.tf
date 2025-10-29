@@ -754,3 +754,7 @@ resource "aws_cloudwatch_dashboard" "infra_dashboard" {
     ]
   })
 }
+
+# -----------------------------
+# Feest
+# -----------------------------
