@@ -24,3 +24,18 @@ terraform {
 provider "aws" {
   region = "eu-central-1"
 }
+
+# Data AMI voor EC2
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+}
+
+# Random suffix voor unieke namen
+resource "random_id" "suffix" {
+  byte_length = 2
+}

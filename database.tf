@@ -1,8 +1,10 @@
+# DB Subnet Group
 resource "aws_db_subnet_group" "db_subnet_group" {
   name       = "db-subnet-group"
   subnet_ids = [aws_subnet.db_subnet1.id, aws_subnet.db_subnet2.id]
 }
 
+# RDS Database
 resource "aws_db_instance" "db" {
   identifier              = "mydb-${random_id.suffix.hex}"
   allocated_storage       = 20

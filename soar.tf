@@ -1,21 +1,15 @@
+# SOAR User Data
 locals {
   soar_user_data = <<-EOT
-#!/bin/bash
-yum update -y
-yum install -y wget tar
+    #!/bin/bash
+    yum update -y
+    yum install -y wget tar mysql
 
-# SOAR installatie (voorbeeld)
-cd /tmp
-wget https://example.com/soar-latest.tar.gz
-tar xvf soar-latest.tar.gz
-cd soar
-./install.sh
-
-systemctl enable soar
-systemctl start soar
-EOT
+    echo "SOAR instance setup complete"
+  EOT
 }
 
+# SOAR Instance
 resource "aws_instance" "soar" {
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = "t2.micro"
