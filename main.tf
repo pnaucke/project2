@@ -575,6 +575,182 @@ output "db_endpoint" {
 output "grafana_private_ip" {
   value = aws_instance.grafana.private_ip
 }
-# ----------------------
-# Feest
-# ----------------------
+
+# -----------------------------
+# Monitoring uitbreiding (CloudWatch + SOAR)
+# -----------------------------
+
+# SNS topic voor alerts (SOAR integratie)
+resource "aws_sns_topic" "soar_sns_topic" {
+  name = "soar-alerts-topic"
+}
+
+# SOAR Lambda (voorbeeld)
+# → deze Lambda wordt getriggerd bij alerts en kan mail sturen of logs opnemen
+resource "aws_lambda_function" "soar_lambda" {
+  filename         = "soar_lambda.zip"
+  function_name    = "soar-alert-handler"
+  role             = aws_iam_role.soar_lambda_role.arn
+  handler          = "lambda_function.lambda_handler"
+  runtime          = "python3.9"
+  source_code_hash = filebase64sha256("soar_lambda.zip")
+  environment {
+    variables = {
+      LOG_LEVEL = "INFO"
+    }
+  }
+}
+
+# IAM Role voor de SOAR Lambda
+resource "aws_iam_role" "soar_lambda_role" {
+  name = "soar-lambda-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+# IAM-beleid voor logging en SNS
+resource "aws_iam_role_policy_attachment" "soar_lambda_logging" {
+  role       = aws_iam_role.soar_lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "soar_lambda_sns" {
+  role       = aws_iam_role.soar_lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
+}
+
+# SNS → Lambda trigger
+resource "aws_lambda_permission" "allow_sns" {
+  statement_id  = "AllowExecutionFromSNS"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.soar_lambda.function_name
+  principal     = "sns.amazonaws.com"
+  source_arn    = aws_sns_topic.soar_sns_topic.arn
+}
+
+resource "aws_sns_topic_subscription" "soar_lambda_subscription" {
+  topic_arn = aws_sns_topic.soar_sns_topic.arn
+  protocol  = "lambda"
+  endpoint  = aws_lambda_function.soar_lambda.arn
+}
+
+# -----------------------------
+# CloudWatch Alarms
+# -----------------------------
+
+# Alarm 1: CPU gebruik > 80% (5 min)
+resource "aws_cloudwatch_metric_alarm" "web_cpu_high" {
+  alarm_name          = "HighCPU-WebServers"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "Webserver CPU boven 80% voor 5 minuten"
+  dimensions = {
+    InstanceId = aws_instance.web1.id
+  }
+  alarm_actions = [aws_sns_topic.soar_sns_topic.arn]
+}
+
+# Alarm 2: Database vrije opslag < 20%
+resource "aws_cloudwatch_metric_alarm" "db_low_storage" {
+  alarm_name          = "LowStorage-Database"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "FreeStorageSpace"
+  namespace           = "AWS/RDS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 20000000000 # 20 GB
+  alarm_description   = "Database vrije opslag lager dan 20%"
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.db.id
+  }
+  alarm_actions = [aws_sns_topic.soar_sns_topic.arn]
+}
+
+# Alarm 3: Database error rate > 5%
+# (Gebruik een custom metric of Prometheus alert integratie)
+resource "aws_cloudwatch_metric_alarm" "db_error_rate" {
+  alarm_name          = "DatabaseErrorRateHigh"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "DatabaseConnections"
+  namespace           = "AWS/RDS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 5
+  alarm_description   = "Database error rate hoger dan 5%"
+  dimensions = {
+    DBInstanceIdentifier = aws_db_instance.db.id
+  }
+  alarm_actions = [aws_sns_topic.soar_sns_topic.arn]
+}
+
+# -----------------------------
+# Grafana Dashboard
+# -----------------------------
+resource "aws_cloudwatch_dashboard" "infra_dashboard" {
+  dashboard_name = "InfraMonitoringDashboard"
+
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        type = "metric"
+        x = 0
+        y = 0
+        width = 12
+        height = 6
+        properties = {
+          metrics = [
+            ["AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.web1.id, { "stat": "Average" }],
+            ["AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.web2.id, { "stat": "Average" }]
+          ]
+          period = 300
+          title  = "Webservers CPU Gebruik"
+          region = "eu-central-1"
+        }
+      },
+      {
+        type = "metric"
+        x = 12
+        y = 0
+        width = 12
+        height = 6
+        properties = {
+          metrics = [
+            ["AWS/RDS", "FreeStorageSpace", "DBInstanceIdentifier", aws_db_instance.db.id, { "stat": "Average" }]
+          ]
+          period = 300
+          title  = "Database Opslagcapaciteit"
+          region = "eu-central-1"
+        }
+      },
+      {
+        type = "metric"
+        x = 0
+        y = 6
+        width = 12
+        height = 6
+        properties = {
+          metrics = [
+            ["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", aws_db_instance.db.id, { "stat": "Average" }]
+          ]
+          period = 300
+          title  = "Database Error Rate (via connections)"
+          region = "eu-central-1"
+        }
+      }
+    ]
+  })
+}
