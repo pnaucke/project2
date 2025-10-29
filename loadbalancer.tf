@@ -1,3 +1,6 @@
+# ----------------------
+# Load Balancer
+# ----------------------
 resource "aws_lb" "web_lb" {
   name               = "web-lb"
   internal           = false
