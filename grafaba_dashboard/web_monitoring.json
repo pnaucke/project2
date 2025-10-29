@@ -1,0 +1,98 @@
+{
+    "dashboard": {
+      "id": null,
+      "title": "Webserver Monitoring",
+      "tags": ["monitoring", "webserver"],
+      "timezone": "browser",
+      "schemaVersion": 30,
+      "version": 1,
+      "panels": [
+        {
+          "id": 1,
+          "title": "Webserver 1 Uptime",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "up{instance='172.31.1.10:80'}",
+              "legendFormat": "Web1",
+              "refId": "A"
+            }
+          ],
+          "alert": {
+            "alertRuleTags": {},
+            "conditions": [
+              {
+                "evaluator": { "params": [0], "type": "equal" },
+                "operator": { "type": "and" },
+                "query": { "params": ["A"] },
+                "reducer": { "type": "last" },
+                "type": "query"
+              }
+            ],
+            "executionErrorState": "alerting",
+            "for": "1m",
+            "frequency": "1m",
+            "handler": 1,
+            "name": "Web1 Down",
+            "noDataState": "alerting",
+            "notifications": [
+              {
+                "uid": "soar-webhook",
+                "type": "webhook",
+                "settings": {
+                  "url": "https://<lambda_invoke_url>",
+                  "httpMethod": "POST",
+                  "body": "{\"instance_id\":\"i-0123456789abcdef0\"}"
+                }
+              }
+            ]
+          },
+          "gridPos": {"x": 0,"y": 0,"w": 12,"h": 8}
+        },
+        {
+          "id": 2,
+          "title": "Webserver 2 Uptime",
+          "type": "graph",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "up{instance='172.31.11.10:80'}",
+              "legendFormat": "Web2",
+              "refId": "A"
+            }
+          ],
+          "alert": {
+            "conditions": [
+              {
+                "evaluator": { "params": [0], "type": "equal" },
+                "operator": { "type": "and" },
+                "query": { "params": ["A"] },
+                "reducer": { "type": "last" },
+                "type": "query"
+              }
+            ],
+            "executionErrorState": "alerting",
+            "for": "1m",
+            "frequency": "1m",
+            "handler": 1,
+            "name": "Web2 Down",
+            "noDataState": "alerting",
+            "notifications": [
+              {
+                "uid": "soar-webhook",
+                "type": "webhook",
+                "settings": {
+                  "url": "https://<lambda_invoke_url>",
+                  "httpMethod": "POST",
+                  "body": "{\"instance_id\":\"i-0abcdef1234567890\"}"
+                }
+              }
+            ]
+          },
+          "gridPos": {"x": 12,"y": 0,"w": 12,"h": 8}
+        }
+      ]
+    }
+  }
+  

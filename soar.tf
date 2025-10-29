@@ -1,22 +1,32 @@
-# SOAR User Data
-locals {
-  soar_user_data = <<-EOT
-    #!/bin/bash
-    yum update -y
-    yum install -y wget tar mysql
-
-    echo "SOAR instance setup complete"
-  EOT
+resource "aws_iam_role" "soar_lambda_role" {
+  name = "soar-lambda-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = { Service = "lambda.amazonaws.com" }
+      }
+    ]
+  })
 }
 
-# SOAR Instance
-resource "aws_instance" "soar" {
-  ami                    = data.aws_ami.amazon_linux.id
-  instance_type          = "t2.micro"
-  subnet_id              = aws_subnet.soar_subnet.id
-  private_ip             = "172.31.3.10"
-  vpc_security_group_ids = [aws_security_group.soar_sg.id]
-  key_name               = "Project1"
-  user_data              = local.soar_user_data
-  tags = { Name = "soar" }
+resource "aws_iam_role_policy_attachment" "soar_lambda_policy" {
+  role       = aws_iam_role.soar_lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+}
+
+resource "aws_lambda_function" "soar" {
+  function_name = "soar-monitor"
+  handler       = "soar.lambda_handler"
+  runtime       = "python3.11"
+  role          = aws_iam_role.soar_lambda_role.arn
+  filename      = "lambda/soar.zip"
+  environment {
+    variables = {
+      WEB1_INSTANCE_ID = aws_instance.web1.id
+      WEB2_INSTANCE_ID = aws_instance.web2.id
+    }
+  }
 }

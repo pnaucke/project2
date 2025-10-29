@@ -10,6 +10,6 @@ output "grafana_private_ip" {
   value = aws_instance.grafana.private_ip
 }
 
-output "soar_private_ip" {
-  value = aws_instance.soar.private_ip
+output "soar_lambda_name" {
+  value = aws_lambda_function.soar.function_name
 }

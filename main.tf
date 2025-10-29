@@ -16,6 +16,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.5"
     }
+    grafana = {
+      source  = "grafana/grafana"
+      version = "~> 1.24"
+    }
   }
 
   required_version = ">= 1.5.0"
@@ -25,17 +29,7 @@ provider "aws" {
   region = "eu-central-1"
 }
 
-# Data AMI voor EC2
-data "aws_ami" "amazon_linux" {
-  most_recent = true
-  owners      = ["amazon"]
-  filter {
-    name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
-  }
-}
-
-# Random suffix voor unieke namen
-resource "random_id" "suffix" {
-  byte_length = 2
+provider "grafana" {
+  url  = "http://${aws_instance.grafana.private_ip}:3000"
+  auth = "admin:admin" # pas aan naar je credentials
 }
