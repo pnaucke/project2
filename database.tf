@@ -4,7 +4,7 @@ resource "aws_db_subnet_group" "db_subnet_group" {
 }
 
 resource "aws_db_instance" "db" {
-  identifier              = "mydb"
+  identifier              = "mydb-${random_id.suffix.hex}"
   allocated_storage       = 20
   engine                  = "mysql"
   engine_version          = "8.0"

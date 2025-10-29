@@ -1,4 +1,12 @@
-# User Data
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+}
+
 locals {
   user_data = <<-EOT
     #!/bin/bash
@@ -27,7 +35,7 @@ locals {
     echo "DB_PASS=SuperSecret123!" >> /etc/environment
     echo "DB_NAME=myappdb" >> /etc/environment
 
-    # Node Exporter
+    # Node Exporter installatie
     useradd --no-create-home --shell /bin/false node_exporter
     cd /tmp
     wget https://github.com/prometheus/node_exporter/releases/download/v1.9.2/node_exporter-1.9.2.linux-amd64.tar.gz
@@ -54,7 +62,6 @@ EOF
   EOT
 }
 
-# Webservers
 resource "aws_instance" "web1" {
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = "t2.micro"

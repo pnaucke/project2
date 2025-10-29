@@ -36,73 +36,18 @@ resource "aws_subnet" "db_subnet2" {
   tags = { Name = "db-subnet-2" }
 }
 
+resource "aws_subnet" "soar_subnet" {
+  vpc_id                  = data.aws_vpc.default.id
+  cidr_block              = "172.31.3.0/24"
+  availability_zone       = "eu-central-1a"
+  map_public_ip_on_launch = false
+  tags = { Name = "soar-subnet" }
+}
+
 resource "aws_subnet" "grafana_subnet" {
   vpc_id                  = data.aws_vpc.default.id
   cidr_block              = "172.31.4.0/24"
   availability_zone       = "eu-central-1a"
   map_public_ip_on_launch = true
   tags = { Name = "grafana-subnet" }
-}
-
-# Security groups (web, db, lb, grafana)
-resource "aws_security_group" "web_sg" {
-  name   = "web-sg"
-  vpc_id = data.aws_vpc.default.id
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-resource "aws_security_group" "db_sg" {
-  name   = "db-sg"
-  vpc_id = data.aws_vpc.default.id
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-resource "aws_security_group" "grafana_sg" {
-  name   = "grafana-sg"
-  vpc_id = data.aws_vpc.default.id
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-resource "aws_security_group" "lb_sg" {
-  name   = "lb-sg"
-  vpc_id = data.aws_vpc.default.id
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 }
