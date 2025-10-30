@@ -16,7 +16,12 @@ locals {
     yum update -y
     yum install -y wget tar
 
+    # Export Grafana password from Terraform variable
+    export GRAFANA_ADMIN_PW="${var.grafana_admin_pw}"
+
+    # ----------------------
     # Install Grafana
+    # ----------------------
     cat <<EOF > /etc/yum.repos.d/grafana.repo
     [grafana]
     name=grafana
@@ -31,10 +36,12 @@ locals {
     systemctl enable grafana-server
     systemctl start grafana-server
 
-    # Set Grafana admin password using Terraform variable
-    sudo grafana-cli admin reset-admin-password ${var.grafana_admin_pw}
+    # Set Grafana admin password
+    grafana-cli admin reset-admin-password "${GRAFANA_ADMIN_PW}"
 
-    # Provision datasource
+    # ----------------------
+    # Provision Prometheus datasource
+    # ----------------------
     mkdir -p /etc/grafana/provisioning/datasources
     cat <<EOF >/etc/grafana/provisioning/datasources/datasource.yml
 apiVersion: 1
@@ -46,7 +53,9 @@ datasources:
     isDefault: true
 EOF
 
-    # Provision dashboards
+    # ----------------------
+    # Provision dashboard
+    # ----------------------
     mkdir -p /etc/grafana/provisioning/dashboards
     mkdir -p /var/lib/grafana/dashboards
     cat <<EOF >/etc/grafana/provisioning/dashboards/dashboard.yml
@@ -60,10 +69,13 @@ providers:
       path: /var/lib/grafana/dashboards
 EOF
 
-    # Copy dashboard JSON
+    # Copy dashboard JSON (uploaded by Terraform provisioner)
     cp /tmp/grafana_dashboard_web.json /var/lib/grafana/dashboards/grafana_dashboard_web.json
+    chown -R grafana:grafana /var/lib/grafana/dashboards
 
+    # ----------------------
     # Install Prometheus
+    # ----------------------
     cd /tmp
     wget https://github.com/prometheus/prometheus/releases/download/v2.47.0/prometheus-2.47.0.linux-amd64.tar.gz
     tar xvf prometheus-2.47.0.linux-amd64.tar.gz
@@ -83,7 +95,9 @@ EOF
     cp prometheus /usr/local/bin/
     cp promtool /usr/local/bin/
 
-    # Prometheus service
+    # ----------------------
+    # Create Prometheus systemd service
+    # ----------------------
     cat <<EOF >/etc/systemd/system/prometheus.service
 [Unit]
 Description=Prometheus
@@ -105,6 +119,9 @@ EOF
     mkdir -p /var/lib/prometheus
     systemctl daemon-reload
     systemctl enable --now prometheus
+
+    # Restart Grafana after everything is ready
+    systemctl restart grafana-server
   EOT
 }
 
