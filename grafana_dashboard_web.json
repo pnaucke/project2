@@ -1,64 +1,63 @@
 {
     "id": null,
-    "title": "Webservers Monitoring",
+    "title": "Webservers Metrics",
+    "uid": "webservers-metrics",
     "timezone": "browser",
+    "schemaVersion": 30,
+    "version": 1,
     "panels": [
       {
         "type": "graph",
-        "title": "CPU Usage (%)",
+        "title": "Webserver CPU Usage",
+        "gridPos": {"h":8,"w":12,"x":0,"y":0},
         "targets": [
           {
-            "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
-            "legendFormat": "{{instance}}"
+            "expr": "100 - (avg by(instance) (irate(node_cpu_seconds_total{mode='idle'}[5m])) * 100)",
+            "legendFormat": "{{instance}}",
+            "refId": "A"
           }
         ],
-        "alert": {
-          "name": "CPU usage high",
-          "conditions": [
-            {
-              "evaluator": { "params": [80], "type": "gt" },
-              "operator": { "type": "and" },
-              "query": { "params": ["A", "5m", "now"] },
-              "reducer": { "type": "avg" },
-              "type": "query"
-            }
-          ],
-          "frequency": "60s",
-          "handler": 1,
-          "message": "CPU usage > 80% for 5 minutes",
-          "noDataState": "no_data",
-          "executionErrorState": "alerting",
-          "for": "5m"
-        }
+        "thresholds": [
+          {
+            "value": 80,
+            "colorMode": "critical",
+            "op": "gt",
+            "line": true
+          }
+        ],
+        "lines": true,
+        "linewidth": 2,
+        "fill": 1,
+        "yaxes": [
+          {"format": "percent", "label": "CPU", "logBase": 1, "min": 0, "max": 100},
+          {"format": "short", "logBase": 1}
+        ]
       },
       {
         "type": "stat",
-        "title": "Webserver Uptime",
+        "title": "Webserver Uptime (seconds)",
+        "gridPos": {"h":4,"w":12,"x":0,"y":8},
         "targets": [
           {
             "expr": "node_time_seconds - node_boot_time_seconds",
-            "legendFormat": "{{instance}}"
+            "legendFormat": "{{instance}}",
+            "refId": "B"
           }
         ],
-        "alert": {
-          "name": "Webserver down",
-          "conditions": [
-            {
-              "evaluator": { "params": [1], "type": "lt" },
-              "operator": { "type": "and" },
-              "query": { "params": ["A", "5m", "now"] },
-              "reducer": { "type": "last" },
-              "type": "query"
-            }
-          ],
-          "frequency": "60s",
-          "handler": 1,
-          "message": "Webserver lijkt down (geen uptime metric)"
+        "colorMode": "value",
+        "graphMode": "area",
+        "format": "s",
+        "thresholds": [],
+        "options": {
+          "reduceOptions": {
+            "calcs": ["last"],
+            "fields": "",
+            "values": false
+          },
+          "orientation": "auto",
+          "textMode": "value"
         }
       }
-    ],
-    "schemaVersion": 36,
-    "version": 1,
-    "refresh": "30s"
+    ]
   }
   
