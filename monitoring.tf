@@ -1,5 +1,5 @@
 # ----------------------
-# Grafana instance + Prometheus
+# Grafana instance
 # ----------------------
 locals {
   grafana_user_data = <<-EOT
@@ -75,29 +75,4 @@ resource "aws_instance" "grafana" {
   key_name               = "Project1"
   user_data              = local.grafana_user_data
   tags = { Name = "grafana" }
-}
-
-# ----------------------
-# Grafana provider
-# ----------------------
-terraform {
-  required_providers {
-    grafana = {
-      source  = "grafana/grafana"
-      version = "~> 1.39"  # kies de gewenste versie
-    }
-  }
-}
-
-provider "grafana" {
-  url  = "http://${aws_instance.grafana.private_ip}:3000"
-  auth = "admin:SuperSecretGrafana123!"  # pas dit aan naar jouw admin wachtwoord
-}
-
-
-# ----------------------
-# Grafana dashboard voor webservers
-# ----------------------
-resource "grafana_dashboard" "web_monitor" {
-  config_json = file("${path.module}/grafana_dashboard_web.json")
 }
