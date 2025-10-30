@@ -13,7 +13,7 @@ jobs:
       AWS_REGION: eu-central-1
 
     steps:
-      # 1. Checkout repo
+      # 1. Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -34,7 +34,10 @@ jobs:
       # 4. Build Lambda zip for SOAR function
       - name: Build Lambda zip
         run: |
-          # Zorg dat je lambda_function.py in dezelfde folder staat als deze workflow
+          # Zorg dat lambda_function.py in dezelfde folder staat als de workflow
+          if [ -f soar_function.zip ]; then
+            rm soar_function.zip
+          fi
           zip -r soar_function.zip lambda_function.py
 
       # 5. Terraform Init (S3 backend)

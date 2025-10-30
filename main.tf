@@ -25,16 +25,12 @@ provider "aws" {
   region = "eu-central-1"
 }
 
-# ----------------------
 # Default VPC
-# ----------------------
 data "aws_vpc" "default" {
   default = true
 }
 
-# ----------------------
 # AMI and random suffix
-# ----------------------
 data "aws_ami" "amazon_linux" {
   most_recent = true
   owners      = ["amazon"]

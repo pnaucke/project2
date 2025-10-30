@@ -1,8 +1,6 @@
-# ----------------------
-# CloudWatch Monitoring & Alarms for Webservers
-# ----------------------
+# CloudWatch Alarms, Lambda (SOAR), SNS, Dashboard
 
-# CloudWatch Alarms for CPU
+# CPU Alarms
 resource "aws_cloudwatch_metric_alarm" "web1_cpu_alarm" {
   alarm_name          = "web1-cpu-alarm"
   comparison_operator = "GreaterThanThreshold"
@@ -12,10 +10,7 @@ resource "aws_cloudwatch_metric_alarm" "web1_cpu_alarm" {
   period              = 60
   statistic           = "Average"
   threshold           = 80
-  alarm_description   = "Trigger when CPU > 80%"
-  dimensions = {
-    InstanceId = aws_instance.web1.id
-  }
+  dimensions = { InstanceId = aws_instance.web1.id }
   alarm_actions = [aws_lambda_function.soar_function.arn, aws_sns_topic.admin_notifications.arn]
 }
 
@@ -28,14 +23,11 @@ resource "aws_cloudwatch_metric_alarm" "web2_cpu_alarm" {
   period              = 60
   statistic           = "Average"
   threshold           = 80
-  alarm_description   = "Trigger when CPU > 80%"
-  dimensions = {
-    InstanceId = aws_instance.web2.id
-  }
+  dimensions = { InstanceId = aws_instance.web2.id }
   alarm_actions = [aws_lambda_function.soar_function.arn, aws_sns_topic.admin_notifications.arn]
 }
 
-# CloudWatch Alarms for EC2 StatusCheckFailed
+# StatusCheckFailed Alarms
 resource "aws_cloudwatch_metric_alarm" "web1_status_alarm" {
   alarm_name          = "web1-status-alarm"
   comparison_operator = "GreaterThanThreshold"
@@ -45,10 +37,7 @@ resource "aws_cloudwatch_metric_alarm" "web1_status_alarm" {
   period              = 60
   statistic           = "Average"
   threshold           = 0
-  alarm_description   = "Trigger when EC2 instance is down"
-  dimensions = {
-    InstanceId = aws_instance.web1.id
-  }
+  dimensions = { InstanceId = aws_instance.web1.id }
   alarm_actions = [aws_lambda_function.soar_function.arn, aws_sns_topic.admin_notifications.arn]
 }
 
@@ -61,14 +50,11 @@ resource "aws_cloudwatch_metric_alarm" "web2_status_alarm" {
   period              = 60
   statistic           = "Average"
   threshold           = 0
-  alarm_description   = "Trigger when EC2 instance is down"
-  dimensions = {
-    InstanceId = aws_instance.web2.id
-  }
+  dimensions = { InstanceId = aws_instance.web2.id }
   alarm_actions = [aws_lambda_function.soar_function.arn, aws_sns_topic.admin_notifications.arn]
 }
 
-# SNS Topic for admin notifications
+# SNS Topic
 resource "aws_sns_topic" "admin_notifications" {
   name = "admin-notifications"
 }
@@ -76,10 +62,10 @@ resource "aws_sns_topic" "admin_notifications" {
 resource "aws_sns_topic_subscription" "admin_email" {
   topic_arn = aws_sns_topic.admin_notifications.arn
   protocol  = "email"
-  endpoint  = "beheerder@example.com" # Vervang door echt e-mail adres
+  endpoint  = "beheerder@example.com"
 }
 
-# SOAR Lambda Function IAM Role
+# Lambda IAM Role
 data "aws_iam_policy_document" "soar_lambda_assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -105,7 +91,7 @@ resource "aws_iam_role_policy_attachment" "soar_lambda_ec2" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
 }
 
-# SOAR Lambda Function
+# Lambda Function
 resource "aws_lambda_function" "soar_function" {
   filename         = "${path.module}/soar_function.zip"
   function_name    = "soar-function"
@@ -113,82 +99,42 @@ resource "aws_lambda_function" "soar_function" {
   handler          = "lambda_function.lambda_handler"
   runtime          = "python3.11"
   source_code_hash = filebase64sha256("${path.module}/soar_function.zip")
-
-  environment {
-    variables = {
-      SNS_TOPIC_ARN = aws_sns_topic.admin_notifications.arn
-    }
-  }
+  environment { variables = { SNS_TOPIC_ARN = aws_sns_topic.admin_notifications.arn } }
 }
 
-# ----------------------
 # CloudWatch Dashboard
-# ----------------------
 resource "aws_cloudwatch_dashboard" "web_dashboard" {
   dashboard_name = "webservers-dashboard"
 
   dashboard_body = jsonencode({
     widgets = [
-      # CPU Usage widget
       {
-        type = "metric",
-        x = 0,
-        y = 0,
-        width = 6,
-        height = 6,
+        type = "metric", x = 0, y = 0, width = 6, height = 6,
         properties = {
           metrics = [
-            [ "AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.web1.id ],
-            [ ".", "CPUUtilization", "InstanceId", aws_instance.web2.id ]
+            ["AWS/EC2","CPUUtilization","InstanceId",aws_instance.web1.id],
+            [".","CPUUtilization","InstanceId",aws_instance.web2.id]
           ],
-          period = 60,
-          stat   = "Average",
-          region = "eu-central-1",
-          title  = "Webservers CPU Usage"
+          period = 60, stat = "Average", region = "eu-central-1", title = "CPU Usage"
         }
       },
-
-      # Status Check widget
       {
-        type = "metric",
-        x = 6,
-        y = 0,
-        width = 6,
-        height = 6,
+        type = "metric", x = 6, y = 0, width = 6, height = 6,
         properties = {
           metrics = [
-            [ "AWS/EC2", "StatusCheckFailed", "InstanceId", aws_instance.web1.id ],
-            [ ".", "StatusCheckFailed", "InstanceId", aws_instance.web2.id ]
+            ["AWS/EC2","StatusCheckFailed","InstanceId",aws_instance.web1.id],
+            [".","StatusCheckFailed","InstanceId",aws_instance.web2.id]
           ],
-          period = 60,
-          stat   = "Maximum",
-          region = "eu-central-1",
-          title  = "Webservers Status Check"
+          period = 60, stat = "Maximum", region = "eu-central-1", title = "Status Check"
         }
       },
-
-      # Uptime Text widget for Web1
       {
-        type = "text",
-        x = 0,
-        y = 6,
-        width = 6,
-        height = 2,
-        properties = {
-          markdown = "### Web1 Uptime\n`Status: ${aws_cloudwatch_metric_alarm.web1_status_alarm.alarm_name}`"
-        }
+        type = "text", x=0, y=6, width=6, height=2,
+        properties = { markdown="### Web1 Uptime\n`Status: ${aws_cloudwatch_metric_alarm.web1_status_alarm.alarm_name}`" }
       },
-
-      # Uptime Text widget for Web2
       {
-        type = "text",
-        x = 6,
-        y = 6,
-        width = 6,
-        height = 2,
-        properties = {
-          markdown = "### Web2 Uptime\n`Status: ${aws_cloudwatch_metric_alarm.web2_status_alarm.alarm_name}`"
-        }
+        type = "text", x=6, y=6, width=6, height=2,
+        properties = { markdown="### Web2 Uptime\n`Status: ${aws_cloudwatch_metric_alarm.web2_status_alarm.alarm_name}`" }
       }
     ]
   })

@@ -1,6 +1,4 @@
-# ----------------------
 # Subnets
-# ----------------------
 resource "aws_subnet" "web1_subnet" {
   vpc_id                  = data.aws_vpc.default.id
   cidr_block              = "172.31.1.0/24"
