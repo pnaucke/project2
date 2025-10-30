@@ -8,7 +8,7 @@ resource "aws_sns_topic" "admin_notifications" {
 resource "aws_sns_topic_subscription" "admin_email" {
   topic_arn = aws_sns_topic.admin_notifications.arn
   protocol  = "email"
-  endpoint  = "554603@student.fontys.nl"
+  endpoint  = "beheerder@example.com" # <--- wijzig naar je echte e-mailadres
 }
 
 # ----------------------
@@ -70,11 +70,11 @@ resource "aws_lambda_function" "soar_function" {
 # CloudWatch Alarms
 # ----------------------
 
-# CPU >= 80% -> Trigger SOAR Lambda & mail
+# CPU >= 80% -> Trigger SOAR Lambda & mail (1 minuut)
 resource "aws_cloudwatch_metric_alarm" "cpu_high_web1" {
   alarm_name          = "web1-high-cpu"
   comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 2
+  evaluation_periods  = 1
   metric_name         = "CPUUtilization"
   namespace           = "AWS/EC2"
   period              = 60
@@ -93,7 +93,7 @@ resource "aws_cloudwatch_metric_alarm" "cpu_high_web1" {
 resource "aws_cloudwatch_metric_alarm" "cpu_high_web2" {
   alarm_name          = "web2-high-cpu"
   comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 2
+  evaluation_periods  = 1
   metric_name         = "CPUUtilization"
   namespace           = "AWS/EC2"
   period              = 60
@@ -109,43 +109,49 @@ resource "aws_cloudwatch_metric_alarm" "cpu_high_web2" {
   ]
 }
 
-# Webserver Down -> mail & SOAR trigger
+# Webserver Down -> mail & SOAR trigger (1 minuut)
 resource "aws_cloudwatch_metric_alarm" "web1_status_alarm" {
   alarm_name          = "web1-status-alarm"
   comparison_operator = "LessThanThreshold"
-  evaluation_periods  = 2
-  metric_name         = "StatusCheckFailed_Instance"
-  namespace           = "AWS/EC2"
+  evaluation_periods  = 1
+  metric_name         = "HealthyHostCount"
+  namespace           = "AWS/ApplicationELB"
   period              = 60
-  statistic           = "Maximum"
+  statistic           = "Average"
   threshold           = 1
-  alarm_description   = "Web1 instance might be down"
+  treat_missing_data  = "notBreaching"
+  alarm_description   = "Web1 seems down (ALB health check)"
   dimensions = {
-    InstanceId = aws_instance.web1.id
+    TargetGroup  = data.aws_lb_target_group.web_tg_data.arn_suffix
+    LoadBalancer = aws_lb.web_lb.arn_suffix
   }
   alarm_actions = [
     aws_sns_topic.admin_notifications.arn,
     aws_lambda_function.soar_function.arn
   ]
+  ok_actions = [aws_sns_topic.admin_notifications.arn]
 }
 
 resource "aws_cloudwatch_metric_alarm" "web2_status_alarm" {
   alarm_name          = "web2-status-alarm"
   comparison_operator = "LessThanThreshold"
-  evaluation_periods  = 2
-  metric_name         = "StatusCheckFailed_Instance"
-  namespace           = "AWS/EC2"
+  evaluation_periods  = 1
+  metric_name         = "HealthyHostCount"
+  namespace           = "AWS/ApplicationELB"
   period              = 60
-  statistic           = "Maximum"
+  statistic           = "Average"
   threshold           = 1
-  alarm_description   = "Web2 instance might be down"
+  treat_missing_data  = "notBreaching"
+  alarm_description   = "Web2 seems down (ALB health check)"
   dimensions = {
-    InstanceId = aws_instance.web2.id
+    TargetGroup  = data.aws_lb_target_group.web_tg_data.arn_suffix
+    LoadBalancer = aws_lb.web_lb.arn_suffix
   }
   alarm_actions = [
     aws_sns_topic.admin_notifications.arn,
     aws_lambda_function.soar_function.arn
   ]
+  ok_actions = [aws_sns_topic.admin_notifications.arn]
 }
 
 # ----------------------
@@ -195,9 +201,7 @@ resource "aws_cloudwatch_dashboard" "web_dashboard" {
         y    = 0,
         width = 24,
         height = 1,
-        properties = {
-          markdown = "# 🌐 Web Monitoring Dashboard"
-        }
+        properties = { markdown = "# 🌐 Web Monitoring Dashboard" }
       },
       {
         type = "metric",
@@ -230,23 +234,6 @@ resource "aws_cloudwatch_dashboard" "web_dashboard" {
           stat   = "Average",
           region = "eu-central-1",
           title  = "Webserver Uptime (HealthyHostCount ≥ 1)"
-        }
-      },
-      {
-        type = "metric",
-        x    = 0,
-        y    = 7,
-        width = 24,
-        height = 6,
-        properties = {
-          metrics = [
-            ["AWS/EC2", "StatusCheckFailed_Instance", "InstanceId", aws_instance.web1.id, { label: "Web1 Uptime Status" }],
-            ["AWS/EC2", "StatusCheckFailed_Instance", "InstanceId", aws_instance.web2.id, { label: "Web2 Uptime Status" }]
-          ],
-          view   = "timeSeries",
-          stacked = false,
-          region = "eu-central-1",
-          title  = "Webserver Status (0 = Up, 1 = Down)"
         }
       }
     ]
