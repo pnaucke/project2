@@ -36,8 +36,8 @@ locals {
     systemctl enable grafana-server
     systemctl start grafana-server
 
-    # Set Grafana admin password
-    grafana-cli admin reset-admin-password "${GRAFANA_ADMIN_PW}"
+    # Set Grafana admin password (fixed for Terraform interpolation)
+    grafana-cli admin reset-admin-password "$$GRAFANA_ADMIN_PW"
 
     # ----------------------
     # Provision Prometheus datasource
