@@ -79,7 +79,7 @@ resource "aws_sns_topic_subscription" "admin_email" {
   endpoint  = "beheerder@example.com" # Vervang door echt e-mail adres
 }
 
-# SOAR Lambda Function
+# SOAR Lambda Function IAM Role
 data "aws_iam_policy_document" "soar_lambda_assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -105,13 +105,15 @@ resource "aws_iam_role_policy_attachment" "soar_lambda_ec2" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
 }
 
+# SOAR Lambda Function
 resource "aws_lambda_function" "soar_function" {
-  filename         = "soar_function.zip" # Zorg dat je dit zip-bestand uploadt in je repo
+  filename         = "${path.module}/soar_function.zip" # gebruik path.module voor correcte locatie
   function_name    = "soar-function"
   role             = aws_iam_role.soar_lambda_role.arn
   handler          = "lambda_function.lambda_handler"
   runtime          = "python3.11"
-  source_code_hash = filebase64sha256("soar_function.zip")
+  source_code_hash = filebase64sha256("${path.module}/soar_function.zip")
+
   environment {
     variables = {
       SNS_TOPIC_ARN = aws_sns_topic.admin_notifications.arn
