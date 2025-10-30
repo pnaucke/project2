@@ -40,11 +40,3 @@ resource "aws_subnet" "soar_subnet" {
   map_public_ip_on_launch = false
   tags = { Name = "soar-subnet" }
 }
-
-resource "aws_subnet" "grafana_subnet" {
-  vpc_id                  = data.aws_vpc.default.id
-  cidr_block              = "172.31.4.0/24"
-  availability_zone       = "eu-central-1a"
-  map_public_ip_on_launch = true
-  tags = { Name = "grafana-subnet" }
-}
