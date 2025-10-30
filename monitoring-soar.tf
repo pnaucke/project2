@@ -107,7 +107,7 @@ resource "aws_iam_role_policy_attachment" "soar_lambda_ec2" {
 
 # SOAR Lambda Function
 resource "aws_lambda_function" "soar_function" {
-  filename         = "${path.module}/soar_function.zip" # gebruik path.module voor correcte locatie
+  filename         = "${path.module}/soar_function.zip"
   function_name    = "soar-function"
   role             = aws_iam_role.soar_lambda_role.arn
   handler          = "lambda_function.lambda_handler"
@@ -119,4 +119,50 @@ resource "aws_lambda_function" "soar_function" {
       SNS_TOPIC_ARN = aws_sns_topic.admin_notifications.arn
     }
   }
+}
+
+# ----------------------
+# CloudWatch Dashboard
+# ----------------------
+resource "aws_cloudwatch_dashboard" "web_dashboard" {
+  dashboard_name = "webservers-dashboard"
+
+  dashboard_body = jsonencode({
+    widgets = [
+      {
+        type = "metric",
+        x = 0,
+        y = 0,
+        width = 6,
+        height = 6,
+        properties = {
+          metrics = [
+            [ "AWS/EC2", "CPUUtilization", "InstanceId", aws_instance.web1.id ],
+            [ ".", "CPUUtilization", "InstanceId", aws_instance.web2.id ]
+          ],
+          period = 60,
+          stat   = "Average",
+          region = "eu-central-1",
+          title  = "Webservers CPU Usage"
+        }
+      },
+      {
+        type = "metric",
+        x = 6,
+        y = 0,
+        width = 6,
+        height = 6,
+        properties = {
+          metrics = [
+            [ "AWS/EC2", "StatusCheckFailed", "InstanceId", aws_instance.web1.id ],
+            [ ".", "StatusCheckFailed", "InstanceId", aws_instance.web2.id ]
+          ],
+          period = 60,
+          stat   = "Maximum",
+          region = "eu-central-1",
+          title  = "Webservers Status Check"
+        }
+      }
+    ]
+  })
 }
