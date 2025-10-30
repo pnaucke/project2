@@ -129,6 +129,7 @@ resource "aws_cloudwatch_dashboard" "web_dashboard" {
 
   dashboard_body = jsonencode({
     widgets = [
+      # CPU Usage widget
       {
         type = "metric",
         x = 0,
@@ -146,6 +147,8 @@ resource "aws_cloudwatch_dashboard" "web_dashboard" {
           title  = "Webservers CPU Usage"
         }
       },
+
+      # Status Check widget
       {
         type = "metric",
         x = 6,
@@ -161,6 +164,30 @@ resource "aws_cloudwatch_dashboard" "web_dashboard" {
           stat   = "Maximum",
           region = "eu-central-1",
           title  = "Webservers Status Check"
+        }
+      },
+
+      # Uptime Text widget for Web1
+      {
+        type = "text",
+        x = 0,
+        y = 6,
+        width = 6,
+        height = 2,
+        properties = {
+          markdown = "### Web1 Uptime\n`Status: ${aws_cloudwatch_metric_alarm.web1_status_alarm.alarm_name}`"
+        }
+      },
+
+      # Uptime Text widget for Web2
+      {
+        type = "text",
+        x = 6,
+        y = 6,
+        width = 6,
+        height = 2,
+        properties = {
+          markdown = "### Web2 Uptime\n`Status: ${aws_cloudwatch_metric_alarm.web2_status_alarm.alarm_name}`"
         }
       }
     ]
