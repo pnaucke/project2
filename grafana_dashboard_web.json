@@ -1,0 +1,64 @@
+{
+    "id": null,
+    "title": "Webservers Monitoring",
+    "timezone": "browser",
+    "panels": [
+      {
+        "type": "graph",
+        "title": "CPU Usage (%)",
+        "targets": [
+          {
+            "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "alert": {
+          "name": "CPU usage high",
+          "conditions": [
+            {
+              "evaluator": { "params": [80], "type": "gt" },
+              "operator": { "type": "and" },
+              "query": { "params": ["A", "5m", "now"] },
+              "reducer": { "type": "avg" },
+              "type": "query"
+            }
+          ],
+          "frequency": "60s",
+          "handler": 1,
+          "message": "CPU usage > 80% for 5 minutes",
+          "noDataState": "no_data",
+          "executionErrorState": "alerting",
+          "for": "5m"
+        }
+      },
+      {
+        "type": "stat",
+        "title": "Webserver Uptime",
+        "targets": [
+          {
+            "expr": "node_time_seconds - node_boot_time_seconds",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "alert": {
+          "name": "Webserver down",
+          "conditions": [
+            {
+              "evaluator": { "params": [1], "type": "lt" },
+              "operator": { "type": "and" },
+              "query": { "params": ["A", "5m", "now"] },
+              "reducer": { "type": "last" },
+              "type": "query"
+            }
+          ],
+          "frequency": "60s",
+          "handler": 1,
+          "message": "Webserver lijkt down (geen uptime metric)"
+        }
+      }
+    ],
+    "schemaVersion": 36,
+    "version": 1,
+    "refresh": "30s"
+  }
+  
