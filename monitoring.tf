@@ -31,8 +31,8 @@ locals {
     systemctl enable grafana-server
     systemctl start grafana-server
 
-    # Set Grafana admin password from environment variable
-    sudo grafana-cli admin reset-admin-password ${GRAFANA_ADMIN_PW}
+    # Set Grafana admin password using Terraform variable
+    sudo grafana-cli admin reset-admin-password ${var.grafana_admin_pw}
 
     # Provision datasource
     mkdir -p /etc/grafana/provisioning/datasources
@@ -127,4 +127,3 @@ resource "aws_instance" "grafana" {
     destination = "/tmp/grafana_dashboard_web.json"
   }
 }
-
