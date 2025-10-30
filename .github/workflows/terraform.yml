@@ -35,8 +35,7 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan -input=false \
-          -var "alert_email=${{ secrets.ALERT_EMAIL }}"
+        run: terraform plan -out=tfplan -input=false
 
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
