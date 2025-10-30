@@ -32,11 +32,3 @@ resource "aws_subnet" "db_subnet2" {
   map_public_ip_on_launch = false
   tags = { Name = "db-subnet-2" }
 }
-
-resource "aws_subnet" "soar_subnet" {
-  vpc_id                  = data.aws_vpc.default.id
-  cidr_block              = "172.31.3.0/24"
-  availability_zone       = "eu-central-1a"
-  map_public_ip_on_launch = false
-  tags = { Name = "soar-subnet" }
-}
