@@ -80,10 +80,20 @@ resource "aws_instance" "grafana" {
 # ----------------------
 # Grafana provider
 # ----------------------
+terraform {
+  required_providers {
+    grafana = {
+      source  = "grafana/grafana"
+      version = "~> 1.39"  # kies de gewenste versie
+    }
+  }
+}
+
 provider "grafana" {
   url  = "http://${aws_instance.grafana.private_ip}:3000"
-  auth = "admin:Admin10!"
+  auth = "admin:SuperSecretGrafana123!"  # pas dit aan naar jouw admin wachtwoord
 }
+
 
 # ----------------------
 # Grafana dashboard voor webservers
