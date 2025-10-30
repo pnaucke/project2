@@ -14,15 +14,14 @@ def lambda_handler(event, context):
     print(message)
 
     if "cpu" in alarm_name.lower() and new_state == "ALARM":
-        print("CPU alarm triggered, provisioning new webserver...")
         instance = ec2.run_instances(
-            ImageId='ami-0abcdef1234567890',
+            ImageId='ami-0c3088b424d041ad4',  # Vervang met jouw AMI
             InstanceType='t2.micro',
             KeyName='Project1',
             MinCount=1,
             MaxCount=1,
-            SecurityGroupIds=['sg-xxxxxxxx'],
-            SubnetId='subnet-xxxxxxxx',
+            SecurityGroupIds=['web-sg-6bfa'], # Vervang met jouw SG
+            SubnetId='subnet-04f826d78af6d39df',       # Vervang met jouw subnet
             TagSpecifications=[{'ResourceType':'instance','Tags':[{'Key':'Name','Value':'web-auto-scaled'}]}]
         )
         message += f"\nLaunched new instance: {instance['Instances'][0]['InstanceId']}"

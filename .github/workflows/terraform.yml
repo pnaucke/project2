@@ -13,7 +13,7 @@ jobs:
       AWS_REGION: eu-central-1
 
     steps:
-      # 1. Checkout repository
+      # 1. Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -31,10 +31,9 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
 
-      # 4. Build Lambda zip for SOAR function
+      # 4. Build Lambda zip
       - name: Build Lambda zip
         run: |
-          # Zorg dat lambda_function.py in dezelfde folder staat als de workflow
           if [ -f soar_function.zip ]; then
             rm soar_function.zip
           fi

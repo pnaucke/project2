@@ -91,7 +91,7 @@ resource "aws_iam_role_policy_attachment" "soar_lambda_ec2" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
 }
 
-# Lambda Function
+# Lambda Function (via ZIP)
 resource "aws_lambda_function" "soar_function" {
   filename         = "${path.module}/soar_function.zip"
   function_name    = "soar-function"
@@ -99,7 +99,12 @@ resource "aws_lambda_function" "soar_function" {
   handler          = "lambda_function.lambda_handler"
   runtime          = "python3.11"
   source_code_hash = filebase64sha256("${path.module}/soar_function.zip")
-  environment { variables = { SNS_TOPIC_ARN = aws_sns_topic.admin_notifications.arn } }
+
+  environment {
+    variables = {
+      SNS_TOPIC_ARN = aws_sns_topic.admin_notifications.arn
+    }
+  }
 }
 
 # CloudWatch Dashboard
