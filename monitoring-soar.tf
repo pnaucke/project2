@@ -1,0 +1,120 @@
+# ----------------------
+# CloudWatch Monitoring & Alarms for Webservers
+# ----------------------
+
+# CloudWatch Alarms for CPU
+resource "aws_cloudwatch_metric_alarm" "web1_cpu_alarm" {
+  alarm_name          = "web1-cpu-alarm"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "Trigger when CPU > 80%"
+  dimensions = {
+    InstanceId = aws_instance.web1.id
+  }
+  alarm_actions = [aws_lambda_function.soar_function.arn, aws_sns_topic.admin_notifications.arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "web2_cpu_alarm" {
+  alarm_name          = "web2-cpu-alarm"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "Trigger when CPU > 80%"
+  dimensions = {
+    InstanceId = aws_instance.web2.id
+  }
+  alarm_actions = [aws_lambda_function.soar_function.arn, aws_sns_topic.admin_notifications.arn]
+}
+
+# CloudWatch Alarms for EC2 StatusCheckFailed
+resource "aws_cloudwatch_metric_alarm" "web1_status_alarm" {
+  alarm_name          = "web1-status-alarm"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "StatusCheckFailed"
+  namespace           = "AWS/EC2"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 0
+  alarm_description   = "Trigger when EC2 instance is down"
+  dimensions = {
+    InstanceId = aws_instance.web1.id
+  }
+  alarm_actions = [aws_lambda_function.soar_function.arn, aws_sns_topic.admin_notifications.arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "web2_status_alarm" {
+  alarm_name          = "web2-status-alarm"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "StatusCheckFailed"
+  namespace           = "AWS/EC2"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 0
+  alarm_description   = "Trigger when EC2 instance is down"
+  dimensions = {
+    InstanceId = aws_instance.web2.id
+  }
+  alarm_actions = [aws_lambda_function.soar_function.arn, aws_sns_topic.admin_notifications.arn]
+}
+
+# SNS Topic for admin notifications
+resource "aws_sns_topic" "admin_notifications" {
+  name = "admin-notifications"
+}
+
+resource "aws_sns_topic_subscription" "admin_email" {
+  topic_arn = aws_sns_topic.admin_notifications.arn
+  protocol  = "email"
+  endpoint  = "beheerder@example.com" # Vervang door echt e-mail adres
+}
+
+# SOAR Lambda Function
+data "aws_iam_policy_document" "soar_lambda_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "soar_lambda_role" {
+  name               = "soar-lambda-role"
+  assume_role_policy = data.aws_iam_policy_document.soar_lambda_assume.json
+}
+
+resource "aws_iam_role_policy_attachment" "soar_lambda_basic" {
+  role       = aws_iam_role.soar_lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "soar_lambda_ec2" {
+  role       = aws_iam_role.soar_lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+}
+
+resource "aws_lambda_function" "soar_function" {
+  filename         = "soar_function.zip" # Zorg dat je dit zip-bestand uploadt in je repo
+  function_name    = "soar-function"
+  role             = aws_iam_role.soar_lambda_role.arn
+  handler          = "lambda_function.lambda_handler"
+  runtime          = "python3.11"
+  source_code_hash = filebase64sha256("soar_function.zip")
+  environment {
+    variables = {
+      SNS_TOPIC_ARN = aws_sns_topic.admin_notifications.arn
+    }
+  }
+}
