@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       AWS_REGION: eu-central-1
+      GRAFANA_ADMIN_PW: ${{ secrets.GRAFANA_ADMIN_PW }}
 
     steps:
       - name: Checkout repository
@@ -36,7 +37,7 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan -input=false
+        run: terraform plan -out=tfplan -input=false -var "grafana_admin_pw=${GRAFANA_ADMIN_PW}"
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -auto-approve -var "grafana_admin_pw=${GRAFANA_ADMIN_PW}" tfplan

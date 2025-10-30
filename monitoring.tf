@@ -1,5 +1,14 @@
 # ----------------------
-# Grafana instance + Prometheus monitoring
+# Variable for Grafana admin password
+# ----------------------
+variable "grafana_admin_pw" {
+  description = "Grafana admin password"
+  type        = string
+  sensitive   = true
+}
+
+# ----------------------
+# Grafana + Prometheus instance
 # ----------------------
 locals {
   grafana_user_data = <<-EOT
@@ -22,7 +31,10 @@ locals {
     systemctl enable grafana-server
     systemctl start grafana-server
 
-    # Grafana provisioning: datasource
+    # Set Grafana admin password from environment variable
+    sudo grafana-cli admin reset-admin-password ${GRAFANA_ADMIN_PW}
+
+    # Provision datasource
     mkdir -p /etc/grafana/provisioning/datasources
     cat <<EOF >/etc/grafana/provisioning/datasources/datasource.yml
 apiVersion: 1
@@ -34,7 +46,7 @@ datasources:
     isDefault: true
 EOF
 
-    # Grafana provisioning: dashboards
+    # Provision dashboards
     mkdir -p /etc/grafana/provisioning/dashboards
     mkdir -p /var/lib/grafana/dashboards
     cat <<EOF >/etc/grafana/provisioning/dashboards/dashboard.yml
@@ -48,7 +60,7 @@ providers:
       path: /var/lib/grafana/dashboards
 EOF
 
-    # Copy dashboard JSON from local folder (Terraform will sync it to /tmp)
+    # Copy dashboard JSON
     cp /tmp/grafana_dashboard_web.json /var/lib/grafana/dashboards/grafana_dashboard_web.json
 
     # Install Prometheus
@@ -96,6 +108,9 @@ EOF
   EOT
 }
 
+# ----------------------
+# Grafana instance
+# ----------------------
 resource "aws_instance" "grafana" {
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = "t2.micro"
@@ -106,9 +121,10 @@ resource "aws_instance" "grafana" {
   user_data              = local.grafana_user_data
   tags = { Name = "grafana" }
 
-  # Upload the dashboard JSON to /tmp so the user_data can copy it
+  # Upload dashboard JSON so user_data can copy it
   provisioner "file" {
     source      = "grafana_dashboard_web.json"
     destination = "/tmp/grafana_dashboard_web.json"
   }
 }
+
